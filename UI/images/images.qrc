@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="header">
+    <file>其他.png</file>
+    <file>升级.png</file>
+    <file>info.png</file>
+    <file>开发者.png</file>
+    <file>功能遥控.png</file>
+    <file>命令.png</file>
+    <file>数据.png</file>
+    <file>叉叉.png</file>
+    <file>实时数据展示.png</file>
+    <file>功能.png</file>
+    <file>ui图标.png</file>
+  </qresource>
+</RCC>
