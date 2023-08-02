@@ -4,35 +4,42 @@
 基于Pyqt5的串口调试开发的电池监测工具，使用串口库serial、作图库pyqtgraph，以及接入了任务完成钉钉机器人消息通知。
 
 
-#### 软件架构
-软件架构说明
+#### 软件说明
+1、基于serial重新封装了写入跟读取方法
+
+2、使用自定义信号的方式进行传值，接入时间戳生成日志文件，日志中每一行的数据精确到了毫秒
+
+3、UI界面为个人开发，使用QListWidght+stackedWidget的方式完成界面切换
 
 
 #### 安装教程
+```
+1.  pip install PyQt5
+```
+```
+2.  pip install pyqtgraph
+```
+```
+3.  pip install pyserial
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+如果下载过慢：pip install -i https://pypi.tuna.tsinghua.edu.cn/simple PyQt5，更换镜像即可。
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  运行 - 直接运行run.py文件即可
+
+2.  main.py - 主要是子线程的实例化调用以及一些UI上的简单操作，外加一个回车发送的快捷键
+
+3.  DataChart.py - 做图，主要是DataPlotWidget类，TimeAxisItem类是重写了X轴数据显示，以时间戳时分秒的方式显示
+
+4.  Connect.py - 连接文件，主要是串口连接，以及子线程的运行文件，在这里，动态曲线跟写入，读取数据都在这个文件。
+
+5.  DINGDING.pu - 钉钉文件，接入钉钉机器人的，需要修改的地方就是hook_url以及secret。
+
+6.  添加机器人，选择群聊-添加机器人-自定义机器人-添加-机器人名称随意，关键词随意-  **加签(必选，最后复制出来，这也就是secret)** 最后同意，将给的地址复制，也就是hook_url
 
 #### 参与贡献
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+1.  开发者：清安
+2.  微信：qing_an_an
