@@ -48,6 +48,8 @@ class DataPlotWidget(QObject):
         pg.setConfigOption('foreground', 'k')
         self.plot = PlotDataItem(pen=pg.mkPen(color='w', width=2))  # 设置曲线的样式
         self.plot_widget.addItem(self.plot)
+        # 在初始化时设置Y轴范围
+        self.plot_widget.setYRange(0, 100)
 
         # 创建文本项
         self.text_item = pg.TextItem(anchor=(0, 1))
@@ -63,6 +65,7 @@ class DataPlotWidget(QObject):
         """清除数据"""
         self.timestamps.clear()
         self.data.clear()
+        self.plot.clear()
 
     @staticmethod
     def find_nearest_index(x, data):
@@ -103,6 +106,12 @@ class DataPlotWidget(QObject):
             self.timestamps.append(timestamp)
             self.data.append(data_point)
 
+            # 限制元素数量为100个
+            max_elements = 100
+            if len(self.timestamps) > max_elements:
+                self.timestamps = self.timestamps[-max_elements:]
+                self.data = self.data[-max_elements:]
+
             # 更新图形数据
             self.plot.setData(x=self.timestamps, y=self.data)
 
@@ -113,5 +122,11 @@ class DataPlotWidget(QObject):
                 self.plot_widget.setXRange(xmin, xmax)
             else:
                 self.plot_widget.setXRange(0, 1)
+            # # 实时计算Y轴范围
+            # if self.data:
+            #     self.y_min = min(self.data)
+            #     self.y_max = max(self.data)
+            #     y_margin = (self.y_max - self.y_min) * 0.1  # 为了美观，加入10%的上下边距
+            #     self.plot_widget.setYRange(self.y_min - y_margin, self.y_max + y_margin)
             # 显示时间戳
             self.plot_widget.getPlotItem().setAxisItems({'bottom': self.date_axis})

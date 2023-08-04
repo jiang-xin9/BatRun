@@ -18,10 +18,9 @@ import urllib.parse
 from typing import Any, Text
 from dingtalkchatbot.chatbot import DingtalkChatbot,FeedLink
 
-
 # 替换为你自己的钉钉机器人 webhook 地址
-hook_url = "https://oapi.dingtalk.com/robot/send?access_token=b7af479187c662c0c65aef1e3141b395ca7b6"
-secret = r'SEC335f49f59e6f7ce0bbf16e62e9533808b93a1ea8fd612b'
+hook_url = "https://oapi.dingtalk.com/robot/send?access_token=b7af479187c662c0c65aef1d7f0d627546e9da743f849c4e81e3141b395ca7b6"
+secret = r'SEC335f49f59e6f7ce0bbf16e62f47b2b1b52849e2beae9533808b93a1ea8fd612b'
 
 
 class DingTalkSendMsg:
@@ -138,4 +137,4 @@ class DingTalkSendMsg:
 
 
 # if __name__ == '__main__':
-    # DingTalkSendMsg().send_ding_notification()
+#     DingTalkSendMsg().send_ding_notification(message)

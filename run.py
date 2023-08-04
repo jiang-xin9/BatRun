@@ -3,7 +3,7 @@
 # 公众号：测个der
 # 微信：qing_an_an
 
-from FUCTIONS.main import BatterySystem
+from main import BatterySystem
 from PyQt5.QtWidgets import QApplication
 
 if __name__ == '__main__':

@@ -1,6 +1,8 @@
 <RCC>
   <qresource prefix="header">
+    <file>batt.png</file>
     <file>其他.png</file>
+    <file>favicon.ico</file>
     <file>升级.png</file>
     <file>info.png</file>
     <file>开发者.png</file>
