@@ -74,18 +74,16 @@ class UiConnect(QThread):
 
         self.dingding = DingTalkSendMsg()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        self.startTime = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        # self.startTime = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self.startTime = datetime.datetime.now()
         self.VolList = []
         self.CurList = []
         self.CapList = []
         self.JumpNum = 0
         self.number = 0
 
-        # 创建定时器
-        self.timer = QTimer()
-        # 清除内容
-        self.timer.timeout.connect(self.TextEditClear)
-        self.timer.start(30000)  # 每隔30秒触发一次定时器槽函数
+        self.TimerClearClock()
+        self.TimerClock()
 
     def run(self) -> None:
         self.CreateSignalSlot()
@@ -149,18 +147,37 @@ class UiConnect(QThread):
         if isinstance(command, str):
             self.ser.WriteInfo(command + "\n")
 
+    def TimerClock(self):
+        # 创建定时器
+        self.SendTimer = QTimer()
+        # 清除内容
+        self.SendTimer.timeout.connect(self.AlarmClockTask)
+        self.SendTimer.start(10000)  # 10S触发一次查看是否需要重新触发
+
+    def TimerClearClock(self):
+        # 创建定时器
+        self.ClearTimer = QTimer()
+        # 清除内容
+        self.ClearTimer.timeout.connect(self.TextEditClear)
+        self.ClearTimer.start(20000)  # 每隔20S秒触发一次定时器槽函数
+
     def TextEditClear(self):
         """清除内容"""
-        if self.UI.textEdit_Send.text():
-            self.UI.textEdit_Send.clear()
-            self.UI.textEdit_Send.setText("info")
-            self.SendData()
         text = self.UI.textEdit_Recive
         if text:
             self.UI.textEdit_Recive.clear()
         else:
             return
 
+    def AlarmClockTask(self):
+        AlarmClockText = self.UI.AlarmClock.text()
+        timeNumber = self.UI.WatingTime.text()
+        if AlarmClockText and self.UI.ClockBtn.isChecked() and timeNumber:
+            self.SendTimer.start(int(timeNumber))   # 重新定义启动时间
+            self.UI.textEdit_Send.setText(AlarmClockText)
+            self.SendData()
+        else:
+            return
 
     def update_ui(self, datas):
         """用于更新UI元素的槽函数"""
@@ -235,12 +252,13 @@ class UiConnect(QThread):
         except:
             pass
         finally:
-            endTime = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            # endTime = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            endTime = datetime.datetime.now()
             # 将时间字符串转换为 datetime 对象
-            start_time = datetime.datetime.strptime(self.startTime, "%H:%M:%S.%f")
-            end_time = datetime.datetime.strptime(endTime, "%H:%M:%S.%f")
-            runTime = end_time - start_time
-            self.UI.label_16.setText(str(runTime)[:-3])
+            # start_time = datetime.datetime.strptime(self.startTime, "%H:%M:%S.%f")
+            # end_time = datetime.datetime.strptime(endTime, "%H:%M:%S.%f")
+            runTime = endTime - self.startTime
+            self.UI.label_16.setText(str(runTime))
         # 在这个槽函数中更新UI元素，比如更新文本框、标签等
         self.UI.textEdit_Recive.insertPlainText(datas)
         self.while_read_thread.MoveCursor()

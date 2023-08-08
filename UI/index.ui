@@ -17,7 +17,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>电池监测V1.0.2</string>
+   <string>电池监测V1.0.3</string>
   </property>
   <property name="windowIcon">
    <iconset resource="images/images.qrc">
@@ -428,7 +428,7 @@ QListView::item:selected {
           <item>
            <widget class="QStackedWidget" name="stackedWidget">
             <property name="currentIndex">
-             <number>0</number>
+             <number>1</number>
             </property>
             <widget class="QWidget" name="page">
              <layout class="QVBoxLayout" name="verticalLayout">
@@ -468,7 +468,7 @@ QListView::item:selected {
                  <enum>Qt::RightToLeft</enum>
                 </property>
                 <property name="styleSheet">
-                 <string notr="true">background-color: rgb(16, 16, 16);</string>
+                 <string notr="true"/>
                 </property>
                 <property name="frameShape">
                  <enum>QFrame::StyledPanel</enum>
@@ -518,7 +518,7 @@ QListView::item:selected {
                     </font>
                    </property>
                    <property name="layoutDirection">
-                    <enum>Qt::RightToLeft</enum>
+                    <enum>Qt::LeftToRight</enum>
                    </property>
                    <property name="styleSheet">
                     <string notr="true">QPushButton {
@@ -555,6 +555,96 @@ QLineEdit {
                      <number>0</number>
                     </property>
                     <item>
+                     <widget class="QLineEdit" name="TestDevices">
+                      <property name="minimumSize">
+                       <size>
+                        <width>140</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>12</pointsize>
+                       </font>
+                      </property>
+                      <property name="layoutDirection">
+                       <enum>Qt::LeftToRight</enum>
+                      </property>
+                      <property name="placeholderText">
+                       <string>测试设备</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLineEdit" name="AlarmClock">
+                      <property name="minimumSize">
+                       <size>
+                        <width>140</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>12</pointsize>
+                       </font>
+                      </property>
+                      <property name="toolTip">
+                       <string>定时命令勾选按钮</string>
+                      </property>
+                      <property name="inputMethodHints">
+                       <set>Qt::ImhPreferLowercase</set>
+                      </property>
+                      <property name="placeholderText">
+                       <string>定时命令</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLineEdit" name="WatingTime">
+                      <property name="minimumSize">
+                       <size>
+                        <width>140</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>12</pointsize>
+                       </font>
+                      </property>
+                      <property name="toolTip">
+                       <string>1S=1000</string>
+                      </property>
+                      <property name="inputMethodHints">
+                       <set>Qt::ImhPreferNumbers</set>
+                      </property>
+                      <property name="placeholderText">
+                       <string>间隔时长</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QRadioButton" name="ClockBtn">
+                      <property name="minimumSize">
+                       <size>
+                        <width>120</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>12</pointsize>
+                       </font>
+                      </property>
+                      <property name="layoutDirection">
+                       <enum>Qt::LeftToRight</enum>
+                      </property>
+                      <property name="text">
+                       <string>启用定时</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
                      <widget class="QPushButton" name="Clear">
                       <property name="sizePolicy">
                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -564,7 +654,7 @@ QLineEdit {
                       </property>
                       <property name="minimumSize">
                        <size>
-                        <width>1180</width>
+                        <width>650</width>
                         <height>30</height>
                        </size>
                       </property>
@@ -587,22 +677,6 @@ QLineEdit {
                       </property>
                       <property name="text">
                        <string>清除</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLineEdit" name="TestDevices">
-                      <property name="minimumSize">
-                       <size>
-                        <width>140</width>
-                        <height>30</height>
-                       </size>
-                      </property>
-                      <property name="layoutDirection">
-                       <enum>Qt::LeftToRight</enum>
-                      </property>
-                      <property name="placeholderText">
-                       <string>测试设备</string>
                       </property>
                      </widget>
                     </item>
@@ -1118,7 +1192,7 @@ QLineEdit {
                      <widget class="QLCDNumber" name="JUMP_NUMBER">
                       <property name="minimumSize">
                        <size>
-                        <width>0</width>
+                        <width>101</width>
                         <height>35</height>
                        </size>
                       </property>
@@ -1157,7 +1231,7 @@ QLineEdit {
                       </property>
                       <property name="font">
                        <font>
-                        <pointsize>9</pointsize>
+                        <pointsize>10</pointsize>
                        </font>
                       </property>
                       <property name="text">
@@ -1172,7 +1246,7 @@ QLineEdit {
                      <widget class="QLCDNumber" name="MAX_JUMP_BAT">
                       <property name="minimumSize">
                        <size>
-                        <width>0</width>
+                        <width>101</width>
                         <height>35</height>
                        </size>
                       </property>
@@ -1226,7 +1300,7 @@ QLineEdit {
                      <widget class="QLCDNumber" name="TIME_BAT_NUM">
                       <property name="minimumSize">
                        <size>
-                        <width>0</width>
+                        <width>101</width>
                         <height>35</height>
                        </size>
                       </property>
@@ -1280,8 +1354,8 @@ QLineEdit {
                      <widget class="QLabel" name="label_16">
                       <property name="minimumSize">
                        <size>
-                        <width>120</width>
-                        <height>0</height>
+                        <width>140</width>
+                        <height>35</height>
                        </size>
                       </property>
                       <property name="maximumSize">
@@ -1292,7 +1366,7 @@ QLineEdit {
                       </property>
                       <property name="font">
                        <font>
-                        <pointsize>10</pointsize>
+                        <pointsize>12</pointsize>
                        </font>
                       </property>
                       <property name="text">
@@ -1310,6 +1384,9 @@ QLineEdit {
                      <width>1260</width>
                      <height>560</height>
                     </size>
+                   </property>
+                   <property name="layoutDirection">
+                    <enum>Qt::LeftToRight</enum>
                    </property>
                    <property name="styleSheet">
                     <string notr="true">background-color: rgb(255, 255, 255);</string>
@@ -1484,6 +1561,9 @@ QLabel:hover {
                      <width>460</width>
                      <height>680</height>
                     </size>
+                   </property>
+                   <property name="toolTip">
+                    <string>默认20S清理一次屏幕</string>
                    </property>
                    <property name="styleSheet">
                     <string notr="true">QTextEdit#textEdit_Recive{
