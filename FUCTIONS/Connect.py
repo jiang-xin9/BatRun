@@ -3,6 +3,9 @@
 # 公众号：测个der
 # 微信：qing_an_an
 import logging
+import json
+import jsonpath
+import os.path
 import re
 import serial
 import datetime
@@ -68,22 +71,24 @@ class UiConnect(QThread):
         self.ser = SerConnect()
         self.UI = UI
 
-        # 创建LogStorageThread实例，并保存为成员变量
-        self.log_storage_thread = LogStorageThread()
-        self.log_storage_thread.start()
+        # # 创建LogStorageThread实例，并保存为成员变量
+        # self.log_storage_thread = LogStorageThread()
+        # self.log_storage_thread.FileNameTime.connect(self.LogFileName)
+        # self.log_storage_thread.start()
 
-        self.dingding = DingTalkSendMsg()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         # self.startTime = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
         self.startTime = datetime.datetime.now()
-        self.VolList = []
-        self.CurList = []
+        self.LogFile = None
         self.CapList = []
+        self.InfoCapList = []
+        self.statusList = []
         self.JumpNum = 0
-        self.number = 0
+        self.num = 0
 
         self.TimerClearClock()
         self.TimerClock()
+        # self.CapListClock()
 
     def run(self) -> None:
         self.CreateSignalSlot()
@@ -128,8 +133,13 @@ class UiConnect(QThread):
             # 在串口连接建立后启动 WhileReadThread
             self.while_read_thread = WhileReadThread(self.ser, self.UI)
             self.while_read_thread.data_received.connect(self.handle_data_received)
-            self.while_read_thread.update_ui_signal.connect(self.update_ui)  # 连接新信号到槽函数
+            self.while_read_thread.update_ui_signal.connect(self.UpdateUi)  # 连接新信号到槽函数
             self.while_read_thread.start()
+
+            # 创建LogStorageThread实例，并保存为成员变量
+            self.log_storage_thread = LogStorageThread(self.UI)
+            self.log_storage_thread.FileNameTime.connect(self.LogFileName)
+            self.log_storage_thread.start()
 
     def CloseCOM(self):
         """关闭串口"""
@@ -148,14 +158,13 @@ class UiConnect(QThread):
             self.ser.WriteInfo(command + "\n")
 
     def TimerClock(self):
-        # 创建定时器
+        # 创建发送定时器
         self.SendTimer = QTimer()
-        # 清除内容
         self.SendTimer.timeout.connect(self.AlarmClockTask)
         self.SendTimer.start(10000)  # 10S触发一次查看是否需要重新触发
 
     def TimerClearClock(self):
-        # 创建定时器
+        # 创建清除定时器
         self.ClearTimer = QTimer()
         # 清除内容
         self.ClearTimer.timeout.connect(self.TextEditClear)
@@ -172,83 +181,90 @@ class UiConnect(QThread):
     def AlarmClockTask(self):
         AlarmClockText = self.UI.AlarmClock.text()
         timeNumber = self.UI.WatingTime.text()
-        if AlarmClockText and self.UI.ClockBtn.isChecked() and timeNumber:
-            self.SendTimer.start(int(timeNumber))   # 重新定义启动时间
-            self.UI.textEdit_Send.setText(AlarmClockText)
-            self.SendData()
-        else:
-            return
+        if timeNumber:
+            Millisecond = int(timeNumber) * 1000  # 计算毫秒
+            if AlarmClockText and self.UI.ClockBtn.isChecked():
+                self.SendTimer.start(Millisecond)  # 重新定义启动时间
+                self.UI.textEdit_Send.setText(AlarmClockText)
+                self.SendData()
+            else:
+                return
 
-    def update_ui(self, datas):
+    def LogFileName(self, Name):
+        """日志存储名称"""
+        self.LogFile = Name
+
+    def JoinFile(self):
+        """启动文件读取"""
+        self.FilePath = os.path.join(sys_, self.LogFile)  # 文件路径
+
+    def StartReadLog(self):
+        """启动读取日志类"""
+        self.JoinFile()  # 执行文件读取
+        SelectText = self.UI.SelectCommand.currentText()  # 获取充电还是放电数据
+        OnelyIphone = self.UI.Iphone.text()
+        Devices = self.UI.TestDevices.text()
+        if OnelyIphone and Devices:
+            self.read = ReadLogThread(self.FilePath, SelectText=SelectText,
+                                      OnelyIphone=OnelyIphone, Devices=Devices)  # 实例化读取类
+        else:
+            self.read = ReadLogThread(self.FilePath, SelectText=SelectText)  # 实例化读取类
+        self.read.start()
+
+    def UpdateUi(self, datas):
         """用于更新UI元素的槽函数"""
-        # 正则提取数据，这里是info数据
-        volValue = re.search(r".*vol\s*:\s*(\d*)\s*", datas)
-        curValue = re.search(r".*cur\s*:\s*(\d*)\s*", datas)
-        # info电量
-        infoCapValue = re.search(r".*cap\s*:\s*(\d*)\s*%", datas)
-        if volValue:
-            self.VolList.append(volValue.group(1))
-        if curValue:
-            self.CurList.append(curValue.group(1))
-        if infoCapValue:
-            Cap = infoCapValue.group(1)  # info电量
-            self.UI.TIME_BAT_NUM.display(Cap)  # 显示在UI上
-            intCap = int(Cap)
-            if 5 <= intCap < 90 and self.number == 0:    # 显示第一次的电压电流
-                self.UI.CHARGE_CUR.display(self.CurList[0])
-                self.UI.CHARGE_VOL.display(self.VolList[0])
-                self.number = 1
-            if intCap >= 90 and self.number == 1:        # 电量大于等于90
-                if self.UI.textEdit_Send.text():
-                    self.UI.textEdit_Send.clear()
-                    self.UI.textEdit_Send.setText("info")   # 发送一次info获取结束电压电流
-                    self.SendData()     # 发送指令
-                if self.VolList and self.CurList: # 如果有数据，则取最后一个
-                    self.UI.RUN_CUR.display(self.CurList[-1])
-                    self.UI.RUN_VOL.display(self.VolList[-1])
-                    self.ser.WriteInfo("bat -d 0")  # 停止
-                    # self.SendDing(info= "测试完成", CurList= CurList, VolList = VolList)
-                    message = f'\n --✉️ {self.UI.TestDevices.text()}充电完成-- \n' \
-                              f'\n📌 测试人员：Aiper \n' \
-                              f'\n💡 当前电量：{self.UI.TIME_BAT_NUM.value()} %' \
-                              f'\n📆 测试日期：{self.currentTime} \n' \
-                              f'\n⌛ 跑机时长：{self.UI.label_16.text()} \n' \
-                              f'\n📝 跳电次数：{self.UI.JUMP_NUMBER.value()} 次 \n' \
-                              f'\n🚀 最大跳电：{self.UI.MAX_JUMP_BAT.value()} % \n' \
-                              f'\n ⚡ 开始电流：{self.CurList[0]} ma \n' \
-                              f'\n ⚡ 开始电压：{self.VolList[0]} mv \n' \
-                              f'\n ⚡ 结束电流：{self.CurList[1]} ma \n' \
-                              f'\n ⚡ 结束电压：{self.VolList[1]} ma \n'
-                    self.dingding.send_ding_notification(message)
-                    self.number = 2
-            # if intCap >= 90:
-            #     message = f'\n --✉️ {self.UI.TestDevices.text()}测试结束-- \n' \
-            #               f'\n❗ 可能处于待机状态 \n'\
-            #               f'\n📌 测试人员：Aiper \n' \
-            #               f'\n💡 当前电量：{self.UI.TIME_BAT_NUM.value()} % \n' \
-            #               f'\n📆 测试日期：{self.currentTime} \n' \
-            #               f'\n⌛ 跑机时长：{self.UI.label_16.text()} \n' \
-            #               f'\n📝 跳电次数：{self.UI.JUMP_NUMBER.value()} 次 \n' \
-            #               f'\n🚀 最大跳电：{self.UI.MAX_JUMP_BAT.value()} % \n' \
-            #               f'\n ⚡ 开始电流：{self.CurList[0]} ma \n' \
-            #               f'\n ⚡ 开始电压：{self.VolList[0]} mv \n' \
-            #               f'\n ⚡ 结束电流：{self.CurList[1]} ma \n' \
-            #               f'\n ⚡ 结束电压：{self.VolList[1]} ma \n'
-            #     self.dingding.send_ding_notification(message)
         try:
             # bat 纯电池电量
             batCapValue = re.search(r".*cap:.*(\d+)", datas)
-            if batCapValue:
-                bat = batCapValue.group().split(",")[-1].strip()
-                self.UI.TIME_BAT_NUM.display(bat)  # 根据bat更新电量
-                self.CapList.append(bat)
+            infoCapValue = re.search(r".*cap\s*:\s*(\d*)\s*%", datas)
+            # 状态
+            statusValue = re.search(r'.*status\s*:\s*(\w*)', datas)
+            Connect = re.search(r".*\s*\+\s*(\w*)", datas)
+            if Connect:  # 检查断连
+                ConnectValue = Connect.group()
+
+            if statusValue:
+                status = statusValue.group(1)  # 充电状态
+                self.statusList.append(status)
+
+            if infoCapValue:
+                capValue = infoCapValue.group(1)
+                self.InfoCapList.append(capValue)
+
+            if self.statusList[-1] == "full" and self.num == 0:  # 充电完成
+                if int(self.InfoCapList[-1]) >= 90:  # 满电
+                    self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
+                    self.SendCustomCommad()
+                    self.SendTimer.stop()
+                    self.Finish()
+                    self.num = 1
+                    # 发送钉钉
+
+            if self.statusList[-1] == "null" and self.num == 0:
+                if int(self.InfoCapList[-1]) <= 10:  # 电量过低
+                    if ConnectValue == ("+DISCONNECT") or ("+CONNECTION"):
+                        self.SendCustomCommad()
+                        self.SendTimer.stop()
+                        self.Finish()
+                        self.num = 1
+                        # 发送钉钉
+
+            if (len(self.InfoCapList) and len(self.statusList)) == 10:
+                self.InfoCapList.clear()
+                self.statusList.clear()
+
+            if batCapValue:  # 有值则往下走
+                self.bat = batCapValue.group().split(",")[-1].strip()
+                self.UI.TIME_BAT_NUM.display(self.bat)  # 根据bat更新电量
+                self.CapList.append(self.bat)
                 if len(self.CapList) == 2:
                     Jump = int(self.CapList[-1]) - int(self.CapList[0])
                     if (Jump > 1) or (Jump < 0):
                         self.JumpNum += 1
                         self.UI.JUMP_NUMBER.display(abs(Jump))  # 绝对值，放电回电，充电掉电
                         self.UI.MAX_JUMP_BAT.display(self.JumpNum)
-                        self.CapList.clear()
+                    self.CapList.clear()
+
         except:
             pass
         finally:
@@ -263,18 +279,21 @@ class UiConnect(QThread):
         self.UI.textEdit_Recive.insertPlainText(datas)
         self.while_read_thread.MoveCursor()
 
-    # def SendDing(self, info, CurList, VolList):
-    #     message = f'\n --❌ {info}-- \n' \
-    #               f'\n📌 测试人员：Aiper \n' \
-    #               f'\n📆 测试日期：{self.currentTime} \n' \
-    #               f'\n⌛ 跑机时长：{self.UI.label_16.text()} \n' \
-    #               f'\n📝 跳电次数："{self.UI.JUMP_NUMBER.value()}" 次 \n' \
-    #               f'\n🚀 最大跳电：{self.UI.MAX_JUMP_BAT.value()} % \n' \
-    #               f'\n ⚡ 开始电流：{CurList[0]} ma \n' \
-    #               f'\n ⚡ 开始电压：{VolList[0]} mv \n' \
-    #               f'\n ⚡ 结束电流：{CurList[1]} ma \n' \
-    #               f'\n ⚡ 结束电压：{VolList[1]} ma \n'
-    #     self.dingding.send_ding_notification(message)
+    def SendCustomCommad(self):
+        """发送自定义结束指令"""
+        self.UI.textEdit_Send.clear()
+        self.ser.WriteInfo("bat -d 0")  # 停止
+        self.SendData()  # 发送指令
+        CustomCommad = self.UI.Custom.text()  # 自定义指令比如info -d 1000
+        if isinstance(CustomCommad, str):
+            self.UI.textEdit_Send.clear()
+            self.ser.WriteInfo(CustomCommad)  # 停止
+            self.SendData()  # 发送指令
+
+    def Finish(self):
+        """表示充电完成"""
+        print("正常完成")
+        self.StartReadLog()
 
     def handle_data_received(self, data):
         """接收到数据后的处理函数"""
@@ -287,11 +306,32 @@ class UiConnect(QThread):
 # 日志存储类
 class LogStorageThread(QThread):
     data_received = pyqtSignal(str)
+    FileNameTime = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, UI):
         super(LogStorageThread, self).__init__()
+        self.UI = UI
+        self.LogName()
+        self.FileRule = True
+
+    def run(self):
+        if self.FileRule:
+            self.FileNameTime.emit(self.log_file)  # 发送日志名称
+            self.FileRule = False
+        self.data_received.connect(self.write_to_log)
+
+    def write_to_log(self, data: str):
+        """将数据写入日志文件"""
+        logging.info(f"{data}")
+
+    def LogName(self):
+        FirstName = self.UI.TestDevices.text()
+        EndName = self.UI.SelectCommand.currentText()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        self.log_file = sys_ + "\\" + self.currentTime + ".log"
+        if FirstName:
+            self.log_file = sys_ + "\\" + FirstName + EndName + self.currentTime + ".log"
+        else:
+            self.log_file = sys_ + "\\" + EndName + self.currentTime + ".log"
         logging.basicConfig(
             filename=self.log_file,
             format="[%(asctime)s.%(msecs)03d] %(message)s",
@@ -299,13 +339,6 @@ class LogStorageThread(QThread):
             level=logging.INFO,
             encoding="utf-8"
         )
-
-    def run(self):
-        self.data_received.connect(self.write_to_log)
-
-    def write_to_log(self,data: str):
-        """将数据写入日志文件"""
-        logging.info(f"{data}")
 
 
 # 循环读取传递数据
@@ -331,8 +364,6 @@ class WhileReadThread(QThread):
                 self.data_received.emit(datas.strip())
                 # 写入显示文本
                 self.update_ui_signal.emit(datas)
-            # else:
-            #     self.SendDing(info='测试异常', CurList = CurList, VolList= VolList)
 
     def MoveCursor(self):
         """移动下拉列表"""
@@ -347,6 +378,7 @@ class WhileReadThread(QThread):
         """ 强制终止线程"""
         self.terminate()
         self.wait()
+
 
 # 曲线图
 class PlotData(QThread):
@@ -372,3 +404,204 @@ class PlotData(QThread):
         """ 强制终止线程"""
         self.terminate()
         self.wait()
+
+
+class ReadLogThread(QThread):
+    def __init__(self, Path, SelectText=None,
+                 OnelyIphone=None, Devices=None):
+        super().__init__()
+        self.Path = Path
+        self.SelectText = SelectText
+        self.dingding = DingTalkSendMsg()
+        self.OnelyIphone = OnelyIphone
+        self.Devices = Devices
+        self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+
+    def run(self) -> None:
+        info = self.Info()
+        if info:
+            self.SendDing(info)
+        with open(sys_ + "\\" + "测试数据.json", "w") as json_file:
+            json.dump(info, json_file, indent=4)  # 使用indent参数以漂亮的格式缩进数据
+
+    @staticmethod
+    def dataTimes(value, stime, etime):
+        if len(value) >= 12:
+            start_time = datetime.datetime.strptime(stime, '%H:%M:%S.%f')
+            end_time = datetime.datetime.strptime(etime, '%H:%M:%S.%f')
+        else:
+            start_time = datetime.datetime.strptime(stime, '%H:%M:%S')
+            end_time = datetime.datetime.strptime(etime, '%H:%M:%S')
+        over_time = end_time - start_time
+        return str(over_time)
+
+    def ReadLog(self):
+        with open(self.Path, 'r', encoding="utf-8") as r:
+            datas = r.read()
+        return datas
+
+    def Info(self):
+        datas = self.ReadLog()
+        Infomations = self.VolCur()
+        capValue = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
+        statusValue = re.findall(r'\[(.*)\].*status\s*:\s*(\w*)', datas)
+        for key, value in zip(statusValue, capValue):
+            if self.SelectText == '充电':
+                # 充电时长
+                ChargeTime = self.dataTimes(stime=statusValue[0][0],
+                                            etime=statusValue[-1][0],
+                                            value=statusValue[0][0])
+                # 充电跳电情况
+                ChargeInfo = self.ChargeInfoBatteryJump()
+                ChargeBat = self.ChargeBatJump()
+                return {"PutTime": ChargeTime, "Currentbattery":capValue[-1][1], "PutInfo": ChargeInfo, "PutBat": ChargeBat,
+                        "Infomations": Infomations}
+
+            elif self.SelectText == "放电":  # 放电
+                # 放电时长
+                PutTime = self.dataTimes(stime=capValue[0][0],
+                                         etime=capValue[-1][0],
+                                         value=capValue[0][0])
+                # 放电跳电情况
+                PutInfo = self.PutInfoBatteryJump()
+                PutBat = self.PutBatJump()
+                return {"PutTime": PutTime, "Currentbattery":capValue[-1][1], "PutInfo": PutInfo, "PutBat": PutBat,
+                        "Infomations": Infomations}
+
+    def ChargeInfoBatteryJump(self):
+        """info充电跳电"""
+        datas = self.ReadLog()
+        MaxNumber = []
+        dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
+        Jump = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
+        for num in range(len(Jump) - 1):
+            CountNumber = int(Jump[num + 1][1]) - int(Jump[num][1])
+            if CountNumber > 1:  # 充电跳电
+                dictValue["JumpNum"] += 1
+                MaxNumber.append(CountNumber)
+                dictValue["JumpValue"].append(Jump[num + 1])
+            if CountNumber < 0:  # 充电掉电
+                dictValue["JumpNum"] += 1
+                MaxNumber.append(CountNumber)
+                dictValue["JumpValue"].append(Jump[num + 1])
+        if MaxNumber:
+            dictValue["MaxJump"] = max(MaxNumber)
+        # print("ChargeInfoBatteryJump",dictValue)
+        return dictValue
+
+    def PutInfoBatteryJump(self):
+        """info放电跳电数据"""
+        datas = self.ReadLog()
+        MaxNumber = []
+        dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
+        Jump = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
+        for num in range(len(Jump) - 1):
+            CountNumber = int(Jump[num][1]) - int(Jump[num + 1][1])
+            if CountNumber > 1:  # 放电回电
+                dictValue["JumpNum"] += 1
+                MaxNumber.append(CountNumber)
+                dictValue["JumpValue"].append(Jump[num + 1])
+            if CountNumber < 0:  # 放电跳电
+                dictValue["JumpNum"] += 1
+                MaxNumber.append(CountNumber)
+                dictValue["JumpValue"].append(Jump[num + 1])
+        if MaxNumber:
+            dictValue["MaxJump"] = max(MaxNumber)
+        return dictValue
+
+    def VolCur(self):
+        """单数是充电电流电压，双数是电池电流电压"""
+        datas = self.ReadLog()
+        ChargeDictValue = {"Start": {"vol": None, "cur": None}, "End": {"vol": None, "cur": None}}
+        BatteryDictValue = {"Start": {"vol": None, "cur": None}, "End": {"vol": None, "cur": None}}
+        volValue = re.findall(r"\[(.*)\].*vol\s*:\s*(\d*)", datas)
+        curValue = re.findall(r"\[(.*)\].*cur\s*:\s*(\d*)", datas)
+        ChargeDict = {"ChargeVol": [], "ChargeCur": []}
+        BatteryDict = {"BatteryVol": [], "BatteryCur": []}
+        if (volValue and curValue) is not False:
+            for num in range(len(volValue)):
+                if num % 2 == 0:  # 充电电流电压
+                    ChargeDict["ChargeVol"].append(volValue[num])
+                    ChargeDict["ChargeCur"].append(curValue[num])
+                else:  # 电池电压电流
+                    BatteryDict["BatteryVol"].append(volValue[num])
+                    BatteryDict["BatteryCur"].append(curValue[num])
+            """充电电压电流数据"""
+            ChargeDictValue["Start"].update({"vol": ChargeDict["ChargeVol"][0][1],
+                                             "cur": ChargeDict["ChargeCur"][0][1]})
+            ChargeDictValue["End"].update({"vol": ChargeDict["ChargeVol"][-1][1],
+                                           "cur": ChargeDict["ChargeCur"][-1][1]})
+            BatteryDictValue["Start"].update({"vol": BatteryDict["BatteryVol"][0][1],
+                                              "cur": BatteryDict["BatteryCur"][0][1]})
+            BatteryDictValue["End"].update({"vol": BatteryDict["BatteryVol"][-1][1],
+                                            "cur": BatteryDict["BatteryCur"][-1][1]})
+            # print("VolCur", ChargeDictValue)
+            return {"ChargeDictValue": ChargeDictValue, "BatteryDictValue": BatteryDictValue}
+
+    def PutBatJump(self):
+        """Bat放电"""
+        BatPutValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
+        MaxNumber = []
+        datas = self.ReadLog()
+        values = re.findall('\[(.*)\].*cap\s*:.*,(.*)', datas)
+        if values:
+            for num in range(len(values) - 1):
+                CountNumber = int(values[num][1]) - int(values[num + 1][1])
+                if  CountNumber > 1:
+                    """掉"""
+                    BatPutValue["JumpNum"] += 1
+                    MaxNumber.append(CountNumber)
+                    BatPutValue["JumpValue"].append(values[num + 1])
+                if CountNumber < 0:
+                    """回"""
+                    BatPutValue["JumpNum"] += 1
+                    MaxNumber.append(CountNumber)
+                    BatPutValue["JumpValue"].append(values[num + 1])
+            if MaxNumber:
+                BatPutValue["MaxJump"] = max(MaxNumber)
+        return BatPutValue
+
+    def ChargeBatJump(self):
+        """Bat充电"""
+        BatChargeValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
+        MaxNumber = []
+        datas = self.ReadLog()
+        values = re.findall('\[(.*)\].*cap\s*:.*,(.*)', datas)
+        if values:
+            for num in range(len(values) - 1):
+                CountNumber = int(values[num + 1][1]) - int(values[num][1])
+                if  CountNumber > 1:
+                    """跳"""
+                    BatChargeValue["JumpNum"] += 1
+                    MaxNumber.append(CountNumber)
+                    BatChargeValue["JumpValue"].append(values[num + 1])
+                if CountNumber < 0:
+                    """掉"""
+                    BatChargeValue["JumpNum"] += 1
+                    MaxNumber.append(CountNumber)
+                    BatChargeValue["JumpValue"].append(values[num + 1])
+            if MaxNumber:
+                BatChargeValue["MaxJump"] = max(MaxNumber)
+        return BatChargeValue
+
+    def SendDing(self, kwargs):
+        message = f'\n --✉️ {self.Devices} Tests complete-- \n' \
+                  f'\n📌 测试人员：Aiper \n' \
+                  f'\n💡 当前电量：{kwargs["Currentbattery"]} % \n' \
+                  f'\n📆 测试日期：{self.currentTime} \n' \
+                  f'\n⌛ 跑机时长：{kwargs["PutTime"]} \n' \
+                  f'\n📝 跳电次数：{kwargs["PutInfo"]["JumpNum"]} 次 \n' \
+                  f'\n🚀 最大跳电：{kwargs["PutInfo"]["MaxJump"]}  \n' \
+                  f'\n ⚡ 开始电流：{kwargs["Infomations"]["ChargeDictValue"]["Start"]["cur"]} ma \n' \
+                  f'\n ⚡ 开始电压：{kwargs["Infomations"]["ChargeDictValue"]["Start"]["vol"]} mv \n' \
+                  f'\n ⚡ 结束电流：{kwargs["Infomations"]["ChargeDictValue"]["End"]["cur"]} ma \n' \
+                  f'\n ⚡ 结束电压：{kwargs["Infomations"]["ChargeDictValue"]["End"]["vol"]} ma \n'\
+                  f'\n📒 详细请参考"测试数据.json"文件。'
+        mobiles = []
+        if self.OnelyIphone:
+            mobiles.append(self.OnelyIphone)
+        self.dingding.send_ding_notification(message, mobiles)
+
+    def JsonPath(self, data, path):
+        """取值"""
+        return jsonpath.jsonpath(data, path)
