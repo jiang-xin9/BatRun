@@ -23,9 +23,9 @@ V1.0.5
 
 9、默认充满为状态"ful"，不支持额外自定义，放电直到断连
 
-![主界面图](https://www.aliyundrive.com/s/NyLbVvv8c9L)
+![主界面图](202381695413.jpg)
 
-![动态数据界面](https://www.aliyundrive.com/s/Hrh1vYCun2a)
+![动态数据界面](202381695541.jpg)
 
 
 #### 软件说明
