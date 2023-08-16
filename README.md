@@ -15,9 +15,9 @@ V1.0.5
 8、新增.json文件，测试数据优化，跳电次数，跳电数据，跑机时长等
 9、默认充满为状态"ful"，不支持额外自定义，放电直到断连
 
-![主界面图](C:\Users\admin\Desktop\202381695413.jpg)
+![主界面图](https://www.aliyundrive.com/s/NyLbVvv8c9L)
 
-![动态数据界面](C:\Users\admin\Desktop\202381695541.jpg)
+![动态数据界面](https://www.aliyundrive.com/s/Hrh1vYCun2a)
 
 
 #### 软件说明
