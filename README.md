@@ -25,9 +25,7 @@ V1.0.5
 
 ![主界面图](202381695413.jpg)
 
-![输入图片说明](https://www.aliyundrive.com/s/NyLbVvv8c9L)
-
-![动态数据界面](https://www.aliyundrive.com/s/Hrh1vYCun2a)
+![动态数据界面](202381695541.jpg)
 
 
 #### 软件说明
