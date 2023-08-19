@@ -57,15 +57,8 @@ class DataPlotWidget(QObject):
         self.text_item.hide()
         # 连接鼠标移动事件
         self.plot_widget.scene().sigMouseMoved.connect(self.mouseMoved)
-        self.ui.Clear.clicked.connect(self.clearGraph)
         # 将绘图窗口添加到布局中
         self.layout.addWidget(self.plot_widget)
-
-    def clearGraph(self):
-        """清除数据"""
-        self.timestamps.clear()
-        self.data.clear()
-        self.plot.clear()
 
     @staticmethod
     def find_nearest_index(x, data):

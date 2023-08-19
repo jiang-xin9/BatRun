@@ -14,7 +14,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QTextCursor
 from FUCTIONS.config import sys_
 from FUCTIONS.DataChart import *
-from FUCTIONS.DINGDING import DingTalkSendMsg
+from FUCTIONS.DingDing import DingTalkSendMsg
 
 
 class SerConnect:
@@ -85,6 +85,7 @@ class UiConnect(QThread):
         self.statusList = []
         self.JumpNum = 0
         self.num = 0
+        self.SelectStant = ["S1", "H2"]
 
         self.TimerClearClock()
         self.TimerClock()
@@ -220,6 +221,8 @@ class UiConnect(QThread):
             # 状态
             statusValue = re.search(r'.*status\s*:\s*(\w*)', datas)
             Connect = re.search(r".*\s*\+\s*(\w*)", datas)
+            StandardText = self.UI.Standard.currentText()
+
             if Connect:  # 检查断连
                 ConnectValue = Connect.group()
 
@@ -240,9 +243,17 @@ class UiConnect(QThread):
                     self.num = 1
                     # 发送钉钉
 
-            if self.statusList[-1] == "null" and self.num == 0:
-                if int(self.InfoCapList[-1]) <= 10:  # 电量过低
-                    if ConnectValue == ("+DISCONNECT") or ("+CONNECTION"):
+            # if self.statusList[-1] == "null" and self.num == 0:
+            # if int(self.InfoCapList[-1]) <= 10:  # 电量过低
+            if ConnectValue == (("+DISCONNECT") or ("+CONNECTION")) and (self.num == 0):
+                self.SendCustomCommad()
+                self.SendTimer.stop()
+                self.Finish()
+                self.num = 1
+                # 发送钉钉
+
+            if StandardText in self.SelectStant and self.num == 0:
+                if int(self.InfoCapList[-1]) >= 90:  # 满电
                         self.SendCustomCommad()
                         self.SendTimer.stop()
                         self.Finish()
@@ -281,13 +292,15 @@ class UiConnect(QThread):
 
     def SendCustomCommad(self):
         """发送自定义结束指令"""
-        self.UI.textEdit_Send.clear()
-        self.ser.WriteInfo("bat -d 0")  # 停止
-        self.SendData()  # 发送指令
-        CustomCommad = self.UI.Custom.text()  # 自定义指令比如info -d 1000
-        if isinstance(CustomCommad, str):
+        CustomCommad2 = self.UI.Custom_2.text()  # 自定义指令比如info -d 1000
+        if isinstance(CustomCommad2, str):
             self.UI.textEdit_Send.clear()
-            self.ser.WriteInfo(CustomCommad)  # 停止
+            self.ser.WriteInfo(CustomCommad2)  # 停止
+            self.SendData()  # 发送指令
+        CustomCommad1 = self.UI.Custom_1.text()  # 自定义指令比如info -d 1000
+        if isinstance(CustomCommad1, str):
+            self.UI.textEdit_Send.clear()
+            self.ser.WriteInfo(CustomCommad1)  # 停止
             self.SendData()  # 发送指令
 
     def Finish(self):
@@ -416,12 +429,19 @@ class ReadLogThread(QThread):
         self.OnelyIphone = OnelyIphone
         self.Devices = Devices
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        self.datas = self.ReadLog()
+        self.ReExpression()
 
     def run(self) -> None:
         info = self.Info()
         if info:
-            self.SendDing(info)
-        with open(sys_ + "\\" + "测试数据.json", "w") as json_file:
+            self.WriteJson(info)    # 写入Json文件
+            self.SendDing(info)     # 发送钉钉
+
+    def WriteJson(self, info):
+        """写入Json数据"""
+        path = os.path.split(self.Path)[-1][:-4]
+        with open(sys_ + "\\" + path + "测试数据.json", "w") as json_file:
             json.dump(info, json_file, indent=4)  # 使用indent参数以漂亮的格式缩进数据
 
     @staticmethod
@@ -440,50 +460,57 @@ class ReadLogThread(QThread):
             datas = r.read()
         return datas
 
-    def Info(self):
-        datas = self.ReadLog()
-        Infomations = self.VolCur()
-        capValue = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
-        statusValue = re.findall(r'\[(.*)\].*status\s*:\s*(\w*)', datas)
-        for key, value in zip(statusValue, capValue):
-            if self.SelectText == '充电':
-                # 充电时长
-                ChargeTime = self.dataTimes(stime=statusValue[0][0],
-                                            etime=statusValue[-1][0],
-                                            value=statusValue[0][0])
-                # 充电跳电情况
-                ChargeInfo = self.ChargeInfoBatteryJump()
-                ChargeBat = self.ChargeBatJump()
-                return {"PutTime": ChargeTime, "Currentbattery":capValue[-1][1], "PutInfo": ChargeInfo, "PutBat": ChargeBat,
-                        "Infomations": Infomations}
+    def ReExpression(self):
+        """正则"""
+        self.capValue = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', self.datas)
+        self.statusValue = re.findall(r'\[(.*)\].*status\s*:\s*(\w*)', self.datas)
 
-            elif self.SelectText == "放电":  # 放电
-                # 放电时长
-                PutTime = self.dataTimes(stime=capValue[0][0],
-                                         etime=capValue[-1][0],
-                                         value=capValue[0][0])
-                # 放电跳电情况
-                PutInfo = self.PutInfoBatteryJump()
-                PutBat = self.PutBatJump()
-                return {"PutTime": PutTime, "Currentbattery":capValue[-1][1], "PutInfo": PutInfo, "PutBat": PutBat,
-                        "Infomations": Infomations}
+        self.volValue = re.findall(r"\[(.*)\]\s*vol\s*:\s*(\d*)", self.datas)
+        self.curValue = re.findall(r"\[(.*)\]\s*cur\s*:\s*(\d*)", self.datas)
+        self.batValues = re.findall('\[(.*)\].*cap\s*:.*,(.*)', self.datas)
+
+    def Info(self):
+        """信息调用"""
+        Infomations = self.VolCur()
+        # for key, value in zip(self.statusValue, self.capValue):
+        if self.SelectText == '充电':
+            # 充电时长
+            ChargeTime = self.dataTimes(stime=self.statusValue[0][0],
+                                        etime=self.statusValue[-1][0],
+                                        value=self.statusValue[0][0])
+            # 充电跳电情况
+            ChargeInfo = self.ChargeInfoBatteryJump()
+            ChargeBat = self.ChargeBatJump()
+            return {"PutTime": ChargeTime, "Currentbattery": self.capValue[-1][1],
+                    "PutInfo" : ChargeInfo, "PutBat": ChargeBat,
+                    "Infomations": Infomations}
+
+        elif self.SelectText == "放电":  # 放电
+            # 放电时长
+            PutTime = self.dataTimes(stime=self.capValue[0][0],
+                                     etime=self.capValue[-1][0],
+                                     value=self.capValue[0][0])
+            # 放电跳电情况
+            PutInfo = self.PutInfoBatteryJump()
+            PutBat = self.PutBatJump()
+            return {"PutTime": PutTime, "Currentbattery": self.capValue[-1][1],
+                    "PutInfo": PutInfo, "PutBat": PutBat,
+                    "Infomations": Infomations}
 
     def ChargeInfoBatteryJump(self):
         """info充电跳电"""
-        datas = self.ReadLog()
         MaxNumber = []
         dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
-        Jump = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
-        for num in range(len(Jump) - 1):
-            CountNumber = int(Jump[num + 1][1]) - int(Jump[num][1])
+        for num in range(len(self.capValue) - 1):
+            CountNumber = int(self.capValue[num + 1][1]) - int(self.capValue[num][1])
             if CountNumber > 1:  # 充电跳电
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(Jump[num + 1])
+                dictValue["JumpValue"].append(self.capValue[num + 1])
             if CountNumber < 0:  # 充电掉电
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(Jump[num + 1])
+                dictValue["JumpValue"].append(self.capValue[num + 1])
         if MaxNumber:
             dictValue["MaxJump"] = max(MaxNumber)
         # print("ChargeInfoBatteryJump",dictValue)
@@ -491,41 +518,36 @@ class ReadLogThread(QThread):
 
     def PutInfoBatteryJump(self):
         """info放电跳电数据"""
-        datas = self.ReadLog()
         MaxNumber = []
         dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
-        Jump = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', datas)
-        for num in range(len(Jump) - 1):
-            CountNumber = int(Jump[num][1]) - int(Jump[num + 1][1])
+        for num in range(len(self.capValue) - 1):
+            CountNumber = int(self.capValue[num][1]) - int(self.capValue[num + 1][1])
             if CountNumber > 1:  # 放电回电
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(Jump[num + 1])
+                dictValue["JumpValue"].append(self.capValue[num + 1])
             if CountNumber < 0:  # 放电跳电
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(Jump[num + 1])
+                dictValue["JumpValue"].append(self.capValue[num + 1])
         if MaxNumber:
             dictValue["MaxJump"] = max(MaxNumber)
         return dictValue
 
     def VolCur(self):
         """单数是充电电流电压，双数是电池电流电压"""
-        datas = self.ReadLog()
         ChargeDictValue = {"Start": {"vol": None, "cur": None}, "End": {"vol": None, "cur": None}}
         BatteryDictValue = {"Start": {"vol": None, "cur": None}, "End": {"vol": None, "cur": None}}
-        volValue = re.findall(r"\[(.*)\].*vol\s*:\s*(\d*)", datas)
-        curValue = re.findall(r"\[(.*)\].*cur\s*:\s*(\d*)", datas)
         ChargeDict = {"ChargeVol": [], "ChargeCur": []}
         BatteryDict = {"BatteryVol": [], "BatteryCur": []}
-        if (volValue and curValue) is not False:
-            for num in range(len(volValue)):
+        if (self.volValue and self.curValue) is not False:
+            for num in range(len(self.volValue)):
                 if num % 2 == 0:  # 充电电流电压
-                    ChargeDict["ChargeVol"].append(volValue[num])
-                    ChargeDict["ChargeCur"].append(curValue[num])
+                    ChargeDict["ChargeVol"].append(self.volValue[num])
+                    ChargeDict["ChargeCur"].append(self.curValue[num])
                 else:  # 电池电压电流
-                    BatteryDict["BatteryVol"].append(volValue[num])
-                    BatteryDict["BatteryCur"].append(curValue[num])
+                    BatteryDict["BatteryVol"].append(self.volValue[num])
+                    BatteryDict["BatteryCur"].append(self.curValue[num])
             """充电电压电流数据"""
             ChargeDictValue["Start"].update({"vol": ChargeDict["ChargeVol"][0][1],
                                              "cur": ChargeDict["ChargeCur"][0][1]})
@@ -542,21 +564,19 @@ class ReadLogThread(QThread):
         """Bat放电"""
         BatPutValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
         MaxNumber = []
-        datas = self.ReadLog()
-        values = re.findall('\[(.*)\].*cap\s*:.*,(.*)', datas)
-        if values:
-            for num in range(len(values) - 1):
-                CountNumber = int(values[num][1]) - int(values[num + 1][1])
-                if  CountNumber > 1:
+        if self.batValues:
+            for num in range(len(self.batValues) - 1):
+                CountNumber = int(self.batValues[num][1]) - int(self.batValues[num + 1][1])
+                if CountNumber > 1:
                     """掉"""
                     BatPutValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
-                    BatPutValue["JumpValue"].append(values[num + 1])
+                    BatPutValue["JumpValue"].append(self.batValues[num + 1])
                 if CountNumber < 0:
                     """回"""
                     BatPutValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
-                    BatPutValue["JumpValue"].append(values[num + 1])
+                    BatPutValue["JumpValue"].append(self.batValues[num + 1])
             if MaxNumber:
                 BatPutValue["MaxJump"] = max(MaxNumber)
         return BatPutValue
@@ -565,21 +585,19 @@ class ReadLogThread(QThread):
         """Bat充电"""
         BatChargeValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
         MaxNumber = []
-        datas = self.ReadLog()
-        values = re.findall('\[(.*)\].*cap\s*:.*,(.*)', datas)
-        if values:
-            for num in range(len(values) - 1):
-                CountNumber = int(values[num + 1][1]) - int(values[num][1])
-                if  CountNumber > 1:
+        if self.batValues:
+            for num in range(len(self.batValues) - 1):
+                CountNumber = int(self.batValues[num + 1][1]) - int(self.batValues[num][1])
+                if CountNumber > 1:
                     """跳"""
                     BatChargeValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
-                    BatChargeValue["JumpValue"].append(values[num + 1])
+                    BatChargeValue["JumpValue"].append(self.batValues[num + 1])
                 if CountNumber < 0:
                     """掉"""
                     BatChargeValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
-                    BatChargeValue["JumpValue"].append(values[num + 1])
+                    BatChargeValue["JumpValue"].append(self.batValues[num + 1])
             if MaxNumber:
                 BatChargeValue["MaxJump"] = max(MaxNumber)
         return BatChargeValue
@@ -600,7 +618,9 @@ class ReadLogThread(QThread):
         mobiles = []
         if self.OnelyIphone:
             mobiles.append(self.OnelyIphone)
-        self.dingding.send_ding_notification(message, mobiles)
+            self.dingding.send_ding_notification(message, mobiles)
+        else:
+            self.dingding.send_ding_notification(message)
 
     def JsonPath(self, data, path):
         """取值"""

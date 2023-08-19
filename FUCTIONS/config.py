@@ -9,3 +9,4 @@ import sys
 Base_Path = os.path.abspath(os.path.dirname(os.path.abspath(__file__))+'\..')
 
 sys_ = os.path.realpath(os.path.dirname(sys.argv[0]))
+JsonPath = os.path.join(sys_, "config.json")
