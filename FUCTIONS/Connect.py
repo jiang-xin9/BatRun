@@ -341,10 +341,15 @@ class LogStorageThread(QThread):
         FirstName = self.UI.TestDevices.text()
         EndName = self.UI.SelectCommand.currentText()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        SaveLogPath = sys_ + "\\" + "自动化电池监测日志"
+        # 检查文件夹是否已存在
+        if not os.path.exists(SaveLogPath):
+            # 使用os.makedirs()创建文件夹
+            os.makedirs(SaveLogPath)
         if FirstName:
-            self.log_file = sys_ + "\\" + FirstName + EndName + self.currentTime + ".log"
+            self.log_file = SaveLogPath + "\\" + FirstName + EndName + self.currentTime + ".log"
         else:
-            self.log_file = sys_ + "\\" + EndName + self.currentTime + ".log"
+            self.log_file = SaveLogPath + "\\" + EndName + self.currentTime + ".log"
         logging.basicConfig(
             filename=self.log_file,
             format="[%(asctime)s.%(msecs)03d] %(message)s",
@@ -441,7 +446,12 @@ class ReadLogThread(QThread):
     def WriteJson(self, info):
         """写入Json数据"""
         path = os.path.split(self.Path)[-1][:-4]
-        with open(sys_ + "\\" + path + "测试数据.json", "w") as json_file:
+        FolderPath = sys_ + "\\" + "自动化电池监测数据"
+        # 检查文件夹是否已存在
+        if not os.path.exists(FolderPath):
+            # 使用os.makedirs()创建文件夹
+            os.makedirs(FolderPath)
+        with open(FolderPath + "\\" + path + "测试数据.json", "w") as json_file:
             json.dump(info, json_file, indent=4)  # 使用indent参数以漂亮的格式缩进数据
 
     @staticmethod
