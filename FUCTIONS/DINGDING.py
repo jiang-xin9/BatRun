@@ -144,7 +144,7 @@ class DingTalkSendMsg:
         )
 
 # if __name__ == '__main__':
-    # r= ReadJson(r'E:\MONITOR_SYSTEM\config.json')
-    # print(r['Custom1'],type(r['Custom1']))
+#     JsonPath = ReadJson(r'E:\MONITOR_SYSTEM\config.json')
+#     print(JsonPath.get("Devices", ""))
 #     message = "此为'配置文件艾特指定人'测试信息"
 #     DingTalkSendMsg().send_ding_notification(message, mobiles=[186746])

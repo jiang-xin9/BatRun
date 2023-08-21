@@ -12,9 +12,9 @@ import datetime
 import serial.tools.list_ports
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QTextCursor
-from FUCTIONS.config import sys_
+from FUCTIONS.config import sys_, JsonPath
 from FUCTIONS.DataChart import *
-from FUCTIONS.DingDing import DingTalkSendMsg
+from FUCTIONS.DingDing import DingTalkSendMsg, ReadJson
 
 
 class SerConnect:
@@ -85,6 +85,7 @@ class UiConnect(QThread):
         self.statusList = []
         self.JumpNum = 0
         self.num = 0
+        self.ConnectValue = None
         self.SelectStant = ["S1", "H2"]
 
         self.TimerClearClock()
@@ -203,13 +204,7 @@ class UiConnect(QThread):
         """启动读取日志类"""
         self.JoinFile()  # 执行文件读取
         SelectText = self.UI.SelectCommand.currentText()  # 获取充电还是放电数据
-        OnelyIphone = self.UI.Iphone.text()
-        Devices = self.UI.TestDevices.text()
-        if OnelyIphone and Devices:
-            self.read = ReadLogThread(self.FilePath, SelectText=SelectText,
-                                      OnelyIphone=OnelyIphone, Devices=Devices)  # 实例化读取类
-        else:
-            self.read = ReadLogThread(self.FilePath, SelectText=SelectText)  # 实例化读取类
+        self.read = ReadLogThread(self.FilePath, SelectText=SelectText)  # 实例化读取类
         self.read.start()
 
     def UpdateUi(self, datas):
@@ -224,7 +219,7 @@ class UiConnect(QThread):
             StandardText = self.UI.Standard.currentText()
 
             if Connect:  # 检查断连
-                ConnectValue = Connect.group()
+                self.ConnectValue = Connect.group()
 
             if statusValue:
                 status = statusValue.group(1)  # 充电状态
@@ -235,17 +230,17 @@ class UiConnect(QThread):
                 self.InfoCapList.append(capValue)
 
             if self.statusList[-1] == "full" and self.num == 0:  # 充电完成
-                if int(self.InfoCapList[-1]) >= 90:  # 满电
-                    self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
-                    self.SendCustomCommad()
-                    self.SendTimer.stop()
-                    self.Finish()
-                    self.num = 1
-                    # 发送钉钉
+                # if int(self.InfoCapList[-1]) >= 90:  # 满电
+                self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
+                self.SendCustomCommad()
+                self.SendTimer.stop()
+                self.Finish()
+                self.num = 1
+                # 发送钉钉
 
             # if self.statusList[-1] == "null" and self.num == 0:
             # if int(self.InfoCapList[-1]) <= 10:  # 电量过低
-            if ConnectValue == (("+DISCONNECT") or ("+CONNECTION")) and (self.num == 0):
+            if self.ConnectValue == (("+DISCONNECT") or ("+CONNECTION")) and (self.num == 0):
                 self.SendCustomCommad()
                 self.SendTimer.stop()
                 self.Finish()
@@ -369,6 +364,8 @@ class WhileReadThread(QThread):
         super(WhileReadThread, self).__init__(parent)
         self.ser = ser
         self.UI = UI
+        self.num = 0
+        self.dingding = DingTalkSendMsg()
         self.pp = PlotData(self.UI)
         self.pp.start()
 
@@ -382,6 +379,31 @@ class WhileReadThread(QThread):
                 self.data_received.emit(datas.strip())
                 # 写入显示文本
                 self.update_ui_signal.emit(datas)
+                self.ProcessData(datas, "pcp", "PCP-堵转")
+                self.ProcessData(datas, "wiv", "WIV-内浸水")
+                self.ProcessData(datas, "bcp", "BCP-过流保护")
+                self.ProcessData(datas, "ocp", "OCP-电机保护")
+
+    def ProcessData(self, data, pattern, prompt):
+        """正则匹配"""
+        match = re.search(r".*{}\s*:\s*(\d+)".format(pattern), data)
+        if match and self.num == 0:
+            self.SendDing(prompt)
+            self.num = 1
+
+    def SendDing(self, prompt):
+        JsonData = ReadJson(JsonPath)
+        message = f'\n --✉️ {JsonData.get("Devices", "")} Tests complete-- \n' \
+                  f'\n📌 测试人员：{JsonData.get("Name", "Apier")} \n' \
+                  f'\n❗❗❗ 告警提示：{prompt} 告警 \n'
+
+        mobiles = []
+        OnelyIphone = JsonData.get("Phone")
+        if OnelyIphone:
+            mobiles.append(OnelyIphone)
+            self.dingding.send_ding_notification(message, mobiles)
+        else:
+            self.dingding.send_ding_notification(message)
 
     def MoveCursor(self):
         """移动下拉列表"""
@@ -425,14 +447,11 @@ class PlotData(QThread):
 
 
 class ReadLogThread(QThread):
-    def __init__(self, Path, SelectText=None,
-                 OnelyIphone=None, Devices=None):
+    def __init__(self, Path, SelectText=None):
         super().__init__()
         self.Path = Path
         self.SelectText = SelectText
         self.dingding = DingTalkSendMsg()
-        self.OnelyIphone = OnelyIphone
-        self.Devices = Devices
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         self.datas = self.ReadLog()
         self.ReExpression()
@@ -613,8 +632,9 @@ class ReadLogThread(QThread):
         return BatChargeValue
 
     def SendDing(self, kwargs):
-        message = f'\n --✉️ {self.Devices} Tests complete-- \n' \
-                  f'\n📌 测试人员：Aiper \n' \
+        JsonData = ReadJson(JsonPath)
+        message = f'\n --✉️ {JsonData.get("Devices", "")} Tests complete-- \n' \
+                  f'\n📌 测试人员：{JsonData.get("Name", "Apier")} \n' \
                   f'\n💡 当前电量：{kwargs["Currentbattery"]} % \n' \
                   f'\n📆 测试日期：{self.currentTime} \n' \
                   f'\n⌛ 跑机时长：{kwargs["PutTime"]} \n' \
@@ -624,10 +644,11 @@ class ReadLogThread(QThread):
                   f'\n ⚡ 开始电压：{kwargs["Infomations"]["ChargeDictValue"]["Start"]["vol"]} mv \n' \
                   f'\n ⚡ 结束电流：{kwargs["Infomations"]["ChargeDictValue"]["End"]["cur"]} ma \n' \
                   f'\n ⚡ 结束电压：{kwargs["Infomations"]["ChargeDictValue"]["End"]["vol"]} ma \n'\
-                  f'\n📒 详细请参考"测试数据.json"文件。'
+                  f'\n📒 详细请参考文件夹中的".json"文件。'
         mobiles = []
-        if self.OnelyIphone:
-            mobiles.append(self.OnelyIphone)
+        OnelyIphone = JsonData.get("Phone")
+        if OnelyIphone:
+            mobiles.append(OnelyIphone)
             self.dingding.send_ding_notification(message, mobiles)
         else:
             self.dingding.send_ding_notification(message)

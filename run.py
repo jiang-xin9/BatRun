@@ -11,3 +11,4 @@ if __name__ == '__main__':
     app.exec_()
 
 # MONITOR_SYSTEM.
+# Pyinstaller -F -w -i UI\images\favicon.ico --name="自动化电池监测V1.08"  run.py

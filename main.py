@@ -79,14 +79,17 @@ class BatterySystem(QMainWindow):
     def AutoAddJson(self):
         """自动添加Json的配置电话、型号"""
         JsonDatas = ReadJson(JsonPath)
-        self.UI.Iphone.setText(JsonDatas["Phone"])
-        self.UI.TestDevices.setText(JsonDatas["Devices"])
-        Custom1Mad = JsonDatas['Custom1']
-        Custom2Mad = JsonDatas['Custom2']
-        if Custom1Mad is not None:
-            self.UI.Custom_1.setText(Custom1Mad)
-        if Custom2Mad is not None:
-            self.UI.Custom_2.setText(Custom2Mad)
+        self.AutoSetText(self.UI.Custom_1, JsonDatas.get('Custom1'))
+        self.AutoSetText(self.UI.Custom_2, JsonDatas.get('Custom2'))
+        self.AutoSetText(self.UI.infoCommand, JsonDatas.get('Command1'))
+        self.AutoSetText(self.UI.infoCommand, JsonDatas.get('Command2'))
+        self.AutoSetText(self.UI.Iphone, JsonDatas.get('Phone'))
+        self.AutoSetText(self.UI.TestDevices, JsonDatas.get('Devices'))
+
+    def AutoSetText(self, UiEelement, value):
+        """自动写入或替换参数"""
+        if value is not None:
+            UiEelement.setText(value)
 
     def UiSecond(self):
         """界面切换"""

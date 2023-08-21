@@ -17,7 +17,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>电池监测V1.0.7</string>
+   <string>电池监测V1.0.8</string>
   </property>
   <property name="windowIcon">
    <iconset resource="images/images.qrc">
@@ -356,7 +356,7 @@ QListView::item:selected {
               <number>2</number>
              </property>
              <property name="text">
-              <string>版本:V1.0.7</string>
+              <string>版本:V1.0.8</string>
              </property>
             </widget>
             <widget class="QLabel" name="label_8">

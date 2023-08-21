@@ -796,7 +796,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "电池监测V1.0.7"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "电池监测V1.0.8"))
         self.label_4.setText(_translate("MainWindow", "RDC-测试组"))
         self.label_5.setText(_translate("MainWindow", "电池电量监控"))
         __sortingEnabled = self.listWidget.isSortingEnabled()
@@ -810,7 +810,7 @@ class Ui_MainWindow(object):
         item = self.listWidget.item(3)
         item.setText(_translate("MainWindow", "OTA升级"))
         self.listWidget.setSortingEnabled(__sortingEnabled)
-        self.label_7.setText(_translate("MainWindow", "版本:V1.0.7"))
+        self.label_7.setText(_translate("MainWindow", "版本:V1.0.8"))
         self.label_8.setText(_translate("MainWindow", "开发者:An"))
         self.TestDevices.setPlaceholderText(_translate("MainWindow", "测试设备"))
         self.AlarmClock.setToolTip(_translate("MainWindow", "定时命令勾选按钮"))
@@ -856,7 +856,7 @@ class Ui_MainWindow(object):
         self.Com_Close_Label.setText(_translate("MainWindow", "关闭串口"))
         self.Com_Close_Button.setText(_translate("MainWindow", "关闭"))
         self.Com_isOpenOrNot_Label.setText(_translate("MainWindow", "串口待打开"))
-        self.infomation.setText(_translate("MainWindow", "此处命令支持拖拽"))
+        self.infomation.setText(_translate("MainWindow", "此处命令支持拖拽(后续有需要可新增)"))
         self.infoCommand.setText(_translate("MainWindow", "info -d 1000"))
         self.batCommand.setText(_translate("MainWindow", "bat -d 2"))
         self.label_21.setText(_translate("MainWindow", "发送端"))
@@ -870,3 +870,4 @@ class Ui_MainWindow(object):
         self.Com_Open_file_2.setText(_translate("MainWindow", "打开文件"))
         self.label_24.setText(_translate("MainWindow", "速率"))
 from . import images
+
