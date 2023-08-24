@@ -2,10 +2,6 @@
 # https://blog.csdn.net/weixin_52040868
 # 公众号：测个der
 # 微信：qing_an_an
-
-
-# !/usr/bin/env python
-# -*- coding:utf-8 -*-
 """
 钉钉通知封装
 """
@@ -17,9 +13,12 @@ import time
 from datetime import datetime
 import urllib.parse
 from typing import Any, Text
+from requests.exceptions import HTTPError, ProxyError
 import requests
 from dingtalkchatbot.chatbot import DingtalkChatbot, FeedLink
 from FUCTIONS.config import JsonPath
+from FUCTIONS.Loging import logger,ExecuteDecorator
+
 
 def ReadJson(FilePath):
     with open(FilePath, "r", encoding='utf-8') as json_file:
@@ -45,7 +44,7 @@ class DingTalkSendMsg:
         根据时间戳 + "sign" 生成密钥
         :return:
         """
-        string_to_sign = f'{self.timeStamp}\n{ self.JsonData["secret"]}'.encode('utf-8')
+        string_to_sign = f'{self.timeStamp}\n{self.JsonData["secret"]}'.encode('utf-8')
         hmac_code = hmac.new(
             self.JsonData["secret"].encode('utf-8'),
             string_to_sign,
@@ -91,6 +90,7 @@ class DingTalkSendMsg:
             pic_url=pic_url
         )
 
+    @ExecuteDecorator
     def send_markdown(
             self,
             title: Text,
@@ -107,14 +107,17 @@ class DingTalkSendMsg:
         :param msg:
         markdown 格式
         """
-
-        if mobiles is None:
-            self.xiao_ding().send_markdown(title=title, text=msg, is_at_all=is_at_all, at_dingtalk_ids=at_dingtalk_ids)
-        else:
-            if isinstance(mobiles, list):
-                self.xiao_ding().send_markdown(title=title, text=msg, at_mobiles=mobiles)
+        try:
+            if mobiles is None:
+                self.xiao_ding().send_markdown(title=title, text=msg, is_at_all=is_at_all,
+                                               at_dingtalk_ids=at_dingtalk_ids)
             else:
-                raise TypeError("mobiles类型错误 不是list类型.")
+                if isinstance(mobiles, list):
+                    self.xiao_ding().send_markdown(title=title, text=msg, at_mobiles=mobiles)
+                else:
+                    logger.error("mobiles类型错误 不是list类型.")
+        except ProxyError as e:
+            logger.error(f"网络异常 {e}")
 
     @staticmethod
     def feed_link(
@@ -144,7 +147,7 @@ class DingTalkSendMsg:
         )
 
 # if __name__ == '__main__':
-#     JsonPath = ReadJson(r'E:\MONITOR_SYSTEM\config.json')
-#     print(JsonPath.get("Devices", ""))
+#     JsonData = ReadJson(r'E:\\MONITOR_SYSTEM\\config.json')
+#     print(JsonData.get("Devices", ""))
 #     message = "此为'配置文件艾特指定人'测试信息"
-#     DingTalkSendMsg().send_ding_notification(message, mobiles=[186746])
+#     DingTalkSendMsg().send_ding_notification(message, mobiles=[JsonData["Phone"]])

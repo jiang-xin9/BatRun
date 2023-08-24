@@ -6,7 +6,8 @@
 from UI.index import *
 from FUCTIONS.Connect import *
 from FUCTIONS.DingDing import ReadJson
-from FUCTIONS.config import JsonPath
+from FUCTIONS.config import sys_, JsonPath
+from FUCTIONS.DataPlotting import DataAnalysis
 from PyQt5.QtGui import QKeyEvent
 from PyQt5.QtCore import Qt, QMimeData, QEvent
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
@@ -17,9 +18,11 @@ from PyQt5.QtGui import QDrag
 class DragAndDropFilter(QObject):
     def __init__(self, source_widget, target_widget):
         super().__init__()
-        self.source_widget = source_widget
-        self.target_widget = target_widget
+        self.source_widget = source_widget  # QLabel
+        self.target_widget = target_widget  # QLineEdit
         self.source_widget.installEventFilter(self)
+        self.target_widget.installEventFilter(self)
+        self.is_dropped = False
 
     def eventFilter(self, obj, event):
         if obj == self.source_widget and event.type() == QEvent.MouseButtonPress:
@@ -34,10 +37,22 @@ class DragAndDropFilter(QObject):
                 if result == Qt.MoveAction:
                     return True
 
-        if obj == self.target_widget and event.type() == QEvent.Drop:
-            mime_data = event.mimeData().text()
-            self.target_widget.setText(mime_data)
-            return True
+        if obj == self.target_widget:
+            if event.type() == QEvent.Drop:
+                mime_data = event.mimeData().text()
+
+                # 如果有文本则先清除
+                if self.is_dropped:
+                    self.target_widget.clear()
+
+                self.target_widget.setText(mime_data)
+                self.target_widget.selectAll()
+                self.is_dropped = True
+                return True
+            elif event.type() == QEvent.DragEnter:
+                # 接受拖动事件以启用拖放
+                event.accept()
+                return True
 
         return super().eventFilter(obj, event)
 
@@ -48,24 +63,28 @@ class BatterySystem(QMainWindow):
         # //////////UI_Main
         self.UI = Ui_MainWindow()
         self.UI.setupUi(self)
-
+        self.Analysis = DataAnalysis(self.UI)   # 添加图形
         # 只读模式
         self.UI.textEdit_Recive.setReadOnly(True)
         # 调用信号方法
         self.SignalFunction()
         self.Color()        # 单独设置一个颜色
-        # 启用UI线程
-        self.uiThread = UiConnect(self.UI)
-        self.uiThread.start()
-
-        # 拖拽
-        self.infoCommanddragdrop = DragAndDropFilter(self.UI.infoCommand, self.UI.textEdit_Send)
-        self.batCommanddragdrop = DragAndDropFilter(self.UI.batCommand, self.UI.textEdit_Send)
-
+        self.StartThread()  # 启用线程
+        self.Drag()         # 启用拖拽
         # 自动加载Json配置
         self.AutoAddJson()
         # ////////显示UI图
         self.show()
+
+    def StartThread(self):
+        # 启用UI线程
+        self.uiThread = UiConnect(self.UI)
+        self.uiThread.start()
+
+    def Drag(self):
+        # 拖拽
+        self.infoCommanddragdrop = DragAndDropFilter(self.UI.infoCommand, self.UI.textEdit_Send)
+        self.batCommanddragdrop = DragAndDropFilter(self.UI.batCommand, self.UI.textEdit_Send)
 
     def SignalFunction(self):
         """信号槽"""
@@ -99,9 +118,10 @@ class BatterySystem(QMainWindow):
         elif num == 1:
             self.UI.stackedWidget.setCurrentWidget(self.UI.page)
         elif num == 2:
-            QMessageBox.information(self, '提示信息', '待开发中')
+            """饼状图数据占比，平均放电时长。折线图的电机电压占比，电流占比"""
+            self.UI.stackedWidget.setCurrentWidget(self.UI.page_4)
         elif num == 3:
-            QMessageBox.information(self, '提示信息', '待开发中')
+            self.UI.stackedWidget.setCurrentWidget(self.UI.page_3)
 
     def closeEvent(self, event):
         reply = QMessageBox.question(self, '请确认', "请确认关闭", QMessageBox.Yes | QMessageBox.No,
