@@ -1,8 +1,11 @@
 {
-  "hook_url" : "https://oapi.dingtalk.com/robot/send?access_token=b7af479187c661b395ca7b6",
-  "secret" : "SEC335f49f59e6f7ce0bbf16e62f47b2b1b528d612b",
-  "Devices" : "6002",
-  "Phone" : "186746",
-  "Custom1" : "info 0",
-  "Custom2" : null
+  "hook_url" : "https://oapi.dingtalk.com/robot/send?access_token=b7af479187c6641b395ca7b6",
+  "secret" : "SEC335f49f59612b",
+  "Name" : "An",
+  "Devices" : "H2",
+  "Phone" : "1867237",
+  "Command1" : null,
+  "Command2" : null,
+  "Custom1" : "info -d 0",
+  "Custom2" : "bat -d 0"
 }
