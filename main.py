@@ -10,7 +10,7 @@ from FUCTIONS.config import sys_, JsonPath
 from FUCTIONS.DataPlotting import DataAnalysis
 from PyQt5.QtGui import QKeyEvent
 from PyQt5.QtCore import Qt, QMimeData, QEvent
-from PyQt5.QtWidgets import QMainWindow, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QMessageBox, QFileDialog
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QDrag
 
@@ -63,7 +63,7 @@ class BatterySystem(QMainWindow):
         # //////////UI_Main
         self.UI = Ui_MainWindow()
         self.UI.setupUi(self)
-        self.Analysis = DataAnalysis(self.UI)   # 添加图形
+
         # 只读模式
         self.UI.textEdit_Recive.setReadOnly(True)
         # 调用信号方法
@@ -77,9 +77,12 @@ class BatterySystem(QMainWindow):
         self.show()
 
     def StartThread(self):
-        # 启用UI线程
+        # 启用数据线程
         self.uiThread = UiConnect(self.UI)
         self.uiThread.start()
+        # 启动图形加载线程
+        self.Analysis = DataAnalysis(self.UI)
+        self.Analysis.ShowWarningSignal.connect(self.showWarningMessage)
 
     def Drag(self):
         # 拖拽
@@ -91,9 +94,20 @@ class BatterySystem(QMainWindow):
         self.UI.stackedWidget.setCurrentWidget(self.UI.page_2)  # 默认显示
         self.UI.listWidget.currentRowChanged.connect(self.UiSecond)
         self.UI.textEdit_Send.installEventFilter(self)  # 链接键盘回车事件
+        self.UI.BtnDataPath.clicked.connect(self.OpenFile)  # 打开文件
 
     def Color(self):
         self.UI.Com_isOpenOrNot_Label.setStyleSheet("background: #a9fff5;")
+        TextStyle = """
+        QMessageBox QPushButton[text="&Yes"] {
+            qproperty-text: "是";
+        }
+        QMessageBox QPushButton[text="&No"] {
+            qproperty-text: "否";
+        }
+        QMessageBox {messagebox-question-icon: url(:/header/警告.png);}
+        """
+        self.setStyleSheet(TextStyle)
 
     def AutoAddJson(self):
         """自动添加Json的配置电话、型号"""
@@ -109,6 +123,15 @@ class BatterySystem(QMainWindow):
         """自动写入或替换参数"""
         if value is not None:
             UiEelement.setText(value)
+
+    def OpenFile(self):
+        """打开数据处理文件"""
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getOpenFileName(None, "选择文件", "",
+                                                  "All Files (*);;Text Files (*.txt);;Image Files (*.log)",
+                                                  options=options)
+        if fileName:
+            self.UI.GetDataPath.setText(fileName)
 
     def UiSecond(self):
         """界面切换"""
@@ -132,6 +155,9 @@ class BatterySystem(QMainWindow):
             QApplication.quit()
         else:
             event.ignore()
+
+    def showWarningMessage(self, message):
+        QMessageBox.warning(self, "警告", message)
 
     # 事件过滤器，监听键盘事件
     def eventFilter(self, obj, event):

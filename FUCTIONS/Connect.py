@@ -100,6 +100,7 @@ class UiConnect(QThread):
         self.DisConnetNum = 0
         self.ConnectValue = None
         self.SelectStant = ["S1", "H2"]
+        self.JsonData = ReadJson(JsonPath)
 
         self.TimerClearClock()
         self.TimerClock()
@@ -255,7 +256,7 @@ class UiConnect(QThread):
 
             # if self.statusList[-1] == "null" and self.num == 0:
             # if int(self.InfoCapList[-1]) <= 10:  # 电量过低
-            if self.ConnectValue == (("+DISCONNECT") or ("+CONNECTION")) and (self.num == 0):
+            if self.ConnectValue == self.JsonData.get("BreakMark") and (self.num == 0):
                 self.DisConnetNum += 1
                 if self.DisConnetNum == 3:
                     self.SendCustomCommad()
@@ -707,3 +708,6 @@ class ReadLogThread(QThread):
         """取值
         self.JsonPath(JsonData,"$..ChargeDictValue.Start.vol")[0]"""
         return jsonpath.jsonpath(data, path)
+
+    def __str__(self):
+        return f"当前类：{self.__class__.__name__}"

@@ -15,7 +15,7 @@ class Log:
 
     @property
     def AddFileHandler(self):
-        GetFile(ExecuteLog)
+        GetFile()
         # 创建一个文件处理程序，将日志写入指定文件
         FileHandler = logging.FileHandler(ExecuteLog, encoding='utf-8')
         FileHandler.setLevel(logging.INFO)

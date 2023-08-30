@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="header">
+    <file>加载.gif</file>
+    <file>警告.png</file>
     <file>batt.png</file>
     <file>其他.png</file>
     <file>favicon.ico</file>

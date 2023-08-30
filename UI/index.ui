@@ -17,7 +17,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>电池监测V1.0.8</string>
+   <string>电池监测V1.1.0</string>
   </property>
   <property name="windowIcon">
    <iconset resource="images/images.qrc">
@@ -356,7 +356,7 @@ QListView::item:selected {
               <number>2</number>
              </property>
              <property name="text">
-              <string>版本:V1.0.8</string>
+              <string>版本:V1.1.0</string>
              </property>
             </widget>
             <widget class="QLabel" name="label_8">
@@ -424,7 +424,7 @@ QListView::item:selected {
 }
 </string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_5">
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
           <item>
            <widget class="QStackedWidget" name="stackedWidget">
             <property name="currentIndex">
@@ -1833,7 +1833,7 @@ QLabel:hover {
              </layout>
             </widget>
             <widget class="QWidget" name="page_4">
-             <layout class="QVBoxLayout" name="verticalLayout_13">
+             <layout class="QVBoxLayout" name="verticalLayout_5">
               <property name="spacing">
                <number>3</number>
               </property>
@@ -1850,7 +1850,7 @@ QLabel:hover {
                <number>0</number>
               </property>
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_7">
+               <layout class="QHBoxLayout" name="horizontalLayout_9">
                 <item>
                  <widget class="QLineEdit" name="GetDataPath">
                   <property name="minimumSize">
@@ -1871,12 +1871,67 @@ QLabel:hover {
                   </property>
                   <property name="minimumSize">
                    <size>
-                    <width>100</width>
+                    <width>80</width>
                     <height>35</height>
                    </size>
                   </property>
                   <property name="text">
                    <string>获取路径</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="Args1">
+                  <property name="minimumSize">
+                   <size>
+                    <width>100</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="Args2">
+                  <property name="minimumSize">
+                   <size>
+                    <width>100</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="Args3">
+                  <property name="minimumSize">
+                   <size>
+                    <width>100</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="BtnLoding">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>80</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                  <property name="baseSize">
+                   <size>
+                    <width>100</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>加载下拉框</string>
                   </property>
                  </widget>
                 </item>
@@ -1890,7 +1945,7 @@ QLabel:hover {
                   </property>
                   <property name="minimumSize">
                    <size>
-                    <width>100</width>
+                    <width>80</width>
                     <height>35</height>
                    </size>
                   </property>
@@ -1939,15 +1994,43 @@ QLabel:hover {
                  </property>
                  <item>
                   <widget class="QWidget" name="widget_4" native="true">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>665</width>
+                     <height>398</height>
+                    </size>
+                   </property>
                    <property name="styleSheet">
-                    <string notr="true">background-color: rgb(243, 255, 240);</string>
+                    <string notr="true">QWidget #widget_4{
+	border: 3px solid rgb(243, 255, 240);
+}</string>
                    </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QWidget" name="widget_5" native="true">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>665</width>
+                     <height>398</height>
+                    </size>
+                   </property>
                    <property name="styleSheet">
-                    <string notr="true">background-color: rgb(250, 255, 237);</string>
+                    <string notr="true">QWidget #widget_5{
+	border: 3px solid rgb(250, 255, 237);
+}</string>
                    </property>
                   </widget>
                  </item>
@@ -1986,21 +2069,37 @@ QLabel:hover {
                  </property>
                  <item>
                   <widget class="QWidget" name="widget_6" native="true">
+                   <property name="minimumSize">
+                    <size>
+                     <width>665</width>
+                     <height>398</height>
+                    </size>
+                   </property>
                    <property name="styleSheet">
-                    <string notr="true">background-color: rgb(250, 255, 237);</string>
+                    <string notr="true">QWidget #widget_6{
+	border: 3px solid rgb(250, 255, 237);
+}</string>
                    </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QWidget" name="widget_7" native="true">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
                    <property name="minimumSize">
                     <size>
-                     <width>0</width>
-                     <height>0</height>
+                     <width>665</width>
+                     <height>398</height>
                     </size>
                    </property>
                    <property name="styleSheet">
-                    <string notr="true">background-color: rgb(243, 255, 240);</string>
+                    <string notr="true">QWidget #widget_7{
+	border: 3px solid rgb(243, 255, 240);
+}</string>
                    </property>
                   </widget>
                  </item>
