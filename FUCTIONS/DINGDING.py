@@ -16,14 +16,15 @@ from typing import Any, Text
 from requests.exceptions import HTTPError, ProxyError
 import requests
 from dingtalkchatbot.chatbot import DingtalkChatbot, FeedLink
+from FUCTIONS.ReadConfig import JSONREAD
 from FUCTIONS.config import JsonPath
 from FUCTIONS.Loging import logger,ExecuteDecorator
 
 
-def ReadJson(FilePath):
-    with open(FilePath, "r", encoding='utf-8') as json_file:
-        JsonData = json.load(json_file)
-    return JsonData
+# def ReadJson(FilePath):
+#     with open(FilePath, "r", encoding='utf-8') as json_file:
+#         JsonData = json.load(json_file)
+#     return JsonData
 
 
 class DingTalkSendMsg:
@@ -31,12 +32,13 @@ class DingTalkSendMsg:
     def __init__(self):
         self.timeStamp = str(round(time.time() * 1000))
         """ 发送钉钉通知 """
-        self.JsonData = ReadJson(JsonPath)
+        # self.JsonData = ReadJson(JsonPath)
+        self.JsonData = JSONREAD()
 
     def xiao_ding(self):
         sign = self.get_sign()
         # 从yaml文件中获取钉钉配置信息
-        webhook = self.JsonData["hook_url"] + "&timestamp=" + self.timeStamp + "&sign=" + sign
+        webhook = self.JsonData.getData("hook_url") + "&timestamp=" + self.timeStamp + "&sign=" + sign
         return DingtalkChatbot(webhook)
 
     def get_sign(self) -> Text:
@@ -44,9 +46,9 @@ class DingTalkSendMsg:
         根据时间戳 + "sign" 生成密钥
         :return:
         """
-        string_to_sign = f'{self.timeStamp}\n{self.JsonData["secret"]}'.encode('utf-8')
+        string_to_sign = f'{self.timeStamp}\n{self.JsonData.getData("secret")}'.encode('utf-8')
         hmac_code = hmac.new(
-            self.JsonData["secret"].encode('utf-8'),
+            self.JsonData.getData("secret").encode('utf-8'),
             string_to_sign,
             digestmod=hashlib.sha256).digest()
 
@@ -147,7 +149,8 @@ class DingTalkSendMsg:
         )
 
 # if __name__ == '__main__':
-#     JsonData = ReadJson(r'E:\\MONITOR_SYSTEM\\config.json')
+    # JsonData = ReadJson(r'E:\\MONITOR_SYSTEM\\config.json')
 #     print(JsonData.get("Devices", ""))
 #     message = "此为'配置文件艾特指定人'测试信息"
-#     DingTalkSendMsg().send_ding_notification(message, mobiles=[JsonData["Phone"]])
+#     DingTalkSendMsg().send_ding_notification(message)
+

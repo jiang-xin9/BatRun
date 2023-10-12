@@ -2,23 +2,23 @@
 # https://blog.csdn.net/weixin_52040868
 # 公众号：测个der
 # 微信：qing_an_an
-import logging
-import json
-import jsonpath
+import binascii, logging, json, jsonpath, re
 import os.path
-import re
 import serial
 import datetime
+from addict import Dict
 import serial.tools.list_ports
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QTextCursor
+from FUCTIONS.ReadConfig import JSONREAD
 from FUCTIONS.config import sys_, JsonPath
 from FUCTIONS.DataChart import *
-from FUCTIONS.DingDing import DingTalkSendMsg, ReadJson
+from FUCTIONS.DingDing import DingTalkSendMsg
 from FUCTIONS.Loging import logger, ExecuteDecorator
+from FUCTIONS.excelUnpack import LogParsingThread
 
 
-def UseException(message=None):     # 异常装饰器
+def UseException(message=None):  # 异常装饰器
     def decorator(func):
         @ExecuteDecorator
         def wrapper(*args, **kwargs):
@@ -27,10 +27,13 @@ def UseException(message=None):     # 异常装饰器
             except Exception as e:
                 # 在这里处理异常，可以根据 custom_message 自定义异常消息
                 ErrorMessage = f"发生异常：{e}，\n" \
-                                f"自定义消息：{message}"
+                               f"自定义消息：{message}"
                 logger.error(ErrorMessage)
+
         return wrapper
+
     return decorator
+
 
 class SerConnect:
 
@@ -61,12 +64,24 @@ class SerConnect:
         if hasattr(self, "ser") and self.ser.writable():
             self.ser.write(command.encode("utf-8"))
 
+    def Write_16(self, command):
+        """写入16进制数据"""
+        if hasattr(self, "ser") and self.ser.writable():
+            self.ser.write(bytes.fromhex(command))
+
     @property
     def ReadeValue(self):
         """读取全部数据"""
         if hasattr(self, "ser") and self.ser.readable():
-            datas = self.ser.read(1024).decode("utf-8")
+            datas = self.ser.read().decode("utf-8")
             return datas
+
+    @property
+    def Reade_16_Value(self):
+        """读取16进制全部数据"""
+        recv = bytes(self.ser.read())
+        Data = binascii.b2a_hex(recv).decode('ascii')
+        return Data
 
     @property
     def ReadLineValue(self):
@@ -75,7 +90,6 @@ class SerConnect:
             try:
                 datas = self.ser.readline().decode("utf-8")
                 if datas:
-                    # print(datas.strip())
                     return datas
             except:
                 pass
@@ -100,7 +114,7 @@ class UiConnect(QThread):
         self.DisConnetNum = 0
         self.ConnectValue = None
         self.SelectStant = ["S1", "H2"]
-        self.JsonData = ReadJson(JsonPath)
+        self.JsonData = JSONREAD()
 
         self.TimerClearClock()
         self.TimerClock()
@@ -149,7 +163,10 @@ class UiConnect(QThread):
             # 在串口连接建立后启动 WhileReadThread
             self.while_read_thread = WhileReadThread(self.ser, self.UI)
             self.while_read_thread.data_received.connect(self.handle_data_received)
-            self.while_read_thread.update_ui_signal.connect(self.UpdateUi)  # 连接新信号到槽函数
+            if self.UI.hexSending_checkBox.isChecked() and self.UI.hexShowing_checkBox.isChecked():
+                self.while_read_thread.update_ui_signal.connect(self.Update16Ui)
+            else:
+                self.while_read_thread.update_ui_signal.connect(self.UpdateUi)  # 连接新信号到槽函数
             self.while_read_thread.start()
 
             # 创建LogStorageThread实例，并保存为成员变量
@@ -168,10 +185,13 @@ class UiConnect(QThread):
         self.BtnSetUp(True, "已关闭", "#ff4545")
 
     def SendData(self):
-        """发送命令"""
+        """写入发送命令"""
         command = self.UI.textEdit_Send.text()
         if isinstance(command, str):
-            self.ser.WriteInfo(command + "\n")
+            if self.UI.hexSending_checkBox.isChecked():
+                self.ser.Write_16(command)
+            else:
+                self.ser.WriteInfo(command + "\n")
 
     def TimerClock(self):
         # 创建发送定时器
@@ -195,6 +215,7 @@ class UiConnect(QThread):
             return
 
     def AlarmClockTask(self):
+        """定时器发送"""
         AlarmClockText = self.UI.AlarmClock.text()
         timeNumber = self.UI.WatingTime.text()
         if timeNumber:
@@ -214,11 +235,11 @@ class UiConnect(QThread):
         """启动文件读取"""
         self.FilePath = os.path.join(sys_, self.LogFile)  # 文件路径
 
-    def StartReadLog(self):
+    def StartReadLog(self, ischeck=False):
         """启动读取日志类"""
         self.JoinFile()  # 执行文件读取
         SelectText = self.UI.SelectCommand.currentText()  # 获取充电还是放电数据
-        self.read = ReadLogThread(self.FilePath, SelectText=SelectText)  # 实例化读取类
+        self.read = ReadLogThread(self.FilePath, SelectText=SelectText, ischeck=ischeck)  # 实例化读取类
         self.read.start()
         logger.info("进入日志读取~")
 
@@ -256,7 +277,7 @@ class UiConnect(QThread):
 
             # if self.statusList[-1] == "null" and self.num == 0:
             # if int(self.InfoCapList[-1]) <= 10:  # 电量过低
-            if self.ConnectValue == self.JsonData.get("BreakMark") and (self.num == 0):
+            if self.ConnectValue == self.JsonData.getData("BreakMark") and (self.num == 0):
                 self.DisConnetNum += 1
                 if self.DisConnetNum == 3:
                     self.SendCustomCommad()
@@ -267,13 +288,13 @@ class UiConnect(QThread):
                     # 发送钉钉
 
             if StandardText in self.SelectStant and self.num == 0:
-                if int(self.InfoCapList[-1]) >= 90:  # 满电
-                        self.SendCustomCommad()
-                        self.SendTimer.stop()
-                        logger.info("充电完成-命令停止")
-                        self.Finish()
-                        self.num = 1
-                        # 发送钉钉
+                if int(self.InfoCapList[-1]) >= int(self.JsonData.getData("BreakBat")):  # 满电
+                    self.SendCustomCommad()
+                    self.SendTimer.stop()
+                    logger.info("充电完成-命令停止")
+                    self.Finish()
+                    self.num = 1
+                    # 发送钉钉
 
             if (len(self.InfoCapList) and len(self.statusList)) == 10:
                 self.InfoCapList.clear()
@@ -292,7 +313,7 @@ class UiConnect(QThread):
                     if (Jump > 1) or (Jump < 0):
                         self.JumpNum += 1
                         self.UI.JUMP_NUMBER.display(self.JumpNum)
-                        self.UI.MAX_JUMP_BAT.display(abs(Jump)) # 绝对值，放电回电，充电掉电
+                        self.UI.MAX_JUMP_BAT.display(abs(Jump))  # 绝对值，放电回电，充电掉电
                     self.CapList.clear()
 
         except:
@@ -304,9 +325,15 @@ class UiConnect(QThread):
             # start_time = datetime.datetime.strptime(self.startTime, "%H:%M:%S.%f")
             # end_time = datetime.datetime.strptime(endTime, "%H:%M:%S.%f")
             runTime = endTime - self.startTime
-            self.UI.label_16.setText(str(runTime))
+            self.UI.label_16.setText(str(runTime)[:-3])
         # 在这个槽函数中更新UI元素，比如更新文本框、标签等
         self.UI.textEdit_Recive.insertPlainText(datas)
+        self.while_read_thread.MoveCursor()
+
+    def Update16Ui(self, datas):
+        # 16进制显示文本
+        self.UI.textEdit_Recive.insertPlainText(datas)
+        # self.UI.textEdit_Recive.insertPlainText("\n")
         self.while_read_thread.MoveCursor()
 
     def SendCustomCommad(self):
@@ -322,11 +349,18 @@ class UiConnect(QThread):
             self.ser.WriteInfo(CustomCommad1)  # 停止
             self.SendData()  # 发送指令
 
+    def Send_16_Commad(self):
+        """发送16进制数据"""
+        self.SendData()
+
     def Finish(self):
         """表示充电完成"""
         logger.info("正常完成-调用读取日志")
-        self.StartReadLog()
-        self.num = 0    # 恢复 0
+        if self.UI.DataUnpack.isChecked():
+            self.StartReadLog(ischeck=True)
+        else:
+            self.StartReadLog()
+        self.num = 0  # 恢复 0
 
     def handle_data_received(self, data):
         """接收到数据后的处理函数"""
@@ -357,7 +391,7 @@ class LogStorageThread(QThread):
         file_handler.setLevel(logging.INFO)
 
         # 创建一个格式化器，定义日志记录的格式
-        formatter = logging.Formatter("[%(asctime)s.%(msecs)03d] %(message)s",datefmt="%H:%M:%S")
+        formatter = logging.Formatter("[%(asctime)s.%(msecs)03d] %(message)s", datefmt="%H:%M:%S")
         file_handler.setFormatter(formatter)
 
         # 将文件处理程序添加到记录器
@@ -376,7 +410,7 @@ class LogStorageThread(QThread):
         self.logger.info(f"{data}")
 
     def LogName(self):
-        FirstName = self.UI.TestDevices.text()
+        FirstName = JSONREAD().getData("Devices")
         EndName = self.UI.SelectCommand.currentText()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         SaveLogPath = sys_ + "\\" + "自动化电池监测日志"
@@ -389,6 +423,7 @@ class LogStorageThread(QThread):
         else:
             self.log_file = SaveLogPath + "\\" + EndName + self.currentTime + ".log"
         logger.info("日志文件创建成功~")
+
 
 # 循环读取传递数据
 class WhileReadThread(QThread):
@@ -406,19 +441,30 @@ class WhileReadThread(QThread):
         self.pp.start()
 
     def run(self):
-        while True:
-            datas = self.ser.ReadLineValue
-            if datas:
-                # 发送数据给UI显示线程
-                self.pp.data_received.emit(datas.strip())
-                # 日志数据
-                self.data_received.emit(datas.strip())
-                # 写入显示文本
-                self.update_ui_signal.emit(datas)
-                self.ProcessData(datas, "pcp", "PCP-堵转")
-                self.ProcessData(datas, "wiv", "WIV-内浸水")
-                self.ProcessData(datas, "bcp", "BCP-过流保护")
-                self.ProcessData(datas, "ocp", "OCP-电机保护")
+        if self.UI.hexSending_checkBox.isChecked():
+            while True:
+                datas = self.ser.Reade_16_Value
+                if datas:
+                    # 发送数据给UI显示线程
+                    self.pp.data_received.emit(datas.strip())
+                    # 日志数据
+                    self.data_received.emit(datas.strip())
+                    # 写入显示文本
+                    self.update_ui_signal.emit(datas)
+        else:
+            while True:
+                datas = self.ser.ReadLineValue
+                if datas:
+                    # 发送数据给UI显示线程
+                    self.pp.data_received.emit(datas.strip())
+                    # 日志数据
+                    self.data_received.emit(datas.strip())
+                    # 写入显示文本
+                    self.update_ui_signal.emit(datas)
+                    self.ProcessData(datas, "pcp", "PCP-堵转")
+                    self.ProcessData(datas, "wiv", "WIV-内浸水")
+                    self.ProcessData(datas, "bcp", "BCP-过流保护")
+                    self.ProcessData(datas, "ocp", "OCP-电机保护")
 
     def ProcessData(self, data, pattern, prompt):
         """正则匹配"""
@@ -430,13 +476,13 @@ class WhileReadThread(QThread):
                 self.num = 1
 
     def SendDing(self, prompt):
-        JsonData = ReadJson(JsonPath)
-        message = f'\n --✉️ {JsonData.get("Devices", "")} Tests complete-- \n' \
-                  f'\n📌 测试人员：{JsonData.get("Name", "Apier")} \n' \
+        Data = JSONREAD()
+        message = f'\n --✉️ {Data.getData("Devices")} Tests complete-- \n' \
+                  f'\n📌 测试人员：{Data.getData("Name", "Apier")} \n' \
                   f'\n❗❗❗ 告警提示：{prompt} 告警 \n'
 
         mobiles = []
-        OnelyIphone = JsonData.get("Phone")
+        OnelyIphone = Data.getData("Phone")
         if OnelyIphone:
             mobiles.append(OnelyIphone)
             self.dingding.send_ding_notification(message, mobiles)
@@ -485,11 +531,13 @@ class PlotData(QThread):
 
 
 class ReadLogThread(QThread):
-    def __init__(self, Path, SelectText=None):
+    def __init__(self, Path, SelectText=None, ischeck=False):
         super().__init__()
         self.Path = Path
+        self.is_check = ischeck
         self.SelectText = SelectText
         self.dingding = DingTalkSendMsg()
+        self.json_Data = JSONREAD()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         self.datas = self.ReadLog
         self.ReExpression()
@@ -499,12 +547,12 @@ class ReadLogThread(QThread):
         if info:
             try:
                 logger.info("正在写入Json文件")
-                self.WriteJson(info)    # 写入Json文件
+                self.WriteJson(info)  # 写入Json文件
                 logger.info("写入Json文件完成")
             except ValueError as e:
                 logger.error(f"Json写入异常 {e}")
             finally:
-                self.SendDing(info)     # 发送钉钉
+                self.SendDing(info)  # 发送钉钉
                 logger.info("钉钉发送完成~")
 
     def WriteJson(self, info):
@@ -518,6 +566,14 @@ class ReadLogThread(QThread):
         logger.info("创建文件成功，并开始写入~")
         with open(FolderPath + "\\" + path + "测试数据.json", "w") as json_file:
             json.dump(info, json_file, indent=4)  # 使用indent参数以漂亮的格式缩进数据
+        if self.is_check:
+            logger.info("开始写入excel")
+            try:
+                LogParsingThread(self.Path)
+            except Exception as e:
+                logger.info("写入异常！ {}".format(e))
+            finally:
+                logger.info("excel写入完成")
 
     @staticmethod
     def DataTimes(stime, etime):
@@ -526,7 +582,10 @@ class ReadLogThread(QThread):
         start_time = datetime.datetime.strptime(stime, start_format)
         end_time = datetime.datetime.strptime(etime, end_format)
         duration = end_time - start_time
-        return str(duration)
+        if len(str(duration)) > 8:
+            return str(duration)[:-3]
+        else:
+            return str(duration)
 
     @property
     def ReadLog(self):
@@ -547,23 +606,31 @@ class ReadLogThread(QThread):
     def Info(self):
         """信息调用"""
         logger.info("进入数据筛选阶段~")
+        PutTime = None
         # for key, value in zip(self.statusValue, self.capValue):
         if self.SelectText == '充电':
             # 充电时长
             ChargeTime = self.DataTimes(stime=self.statusValue[0][0],
                                         etime=self.statusValue[-1][0])
             # 充电跳电情况
-            return {"PutTime": ChargeTime, "Currentbattery": self.capValue[-1][1],
-                    "PutInfo" : self.ChargeInfoBatteryJump, "PutBat": self.ChargeBatJump,
+            return {"PutTime"    : ChargeTime, "Currentbattery": self.capValue[-1][1],
+                    "PutInfo"    : self.ChargeInfoBatteryJump, "PutBat": self.ChargeBatJump,
                     "Infomations": self.VolCur}
 
         elif self.SelectText == "放电":  # 放电
-            # 放电时长
-            PutTime = self.DataTimes(stime=self.capValue[0][0],
-                                     etime=self.capValue[-1][0])
+            if self.json_Data.getData("BatteryCut"):
+                for cap in self.capValue:
+                    if int(cap[1]) == self.json_Data.getData("CutValue"):
+                        PutTime = self.DataTimes(stime=cap[0],
+                                                 etime=self.capValue[-1][0])
+                        break
+            else:
+                # 放电时长
+                PutTime = self.DataTimes(stime=self.capValue[0][0],
+                                         etime=self.capValue[-1][0])
             # 放电跳电情况
-            return {"PutTime": PutTime, "Currentbattery": self.capValue[-1][1],
-                    "PutInfo": self.PutInfoBatteryJump, "PutBat": self.PutBatJump,
+            return {"PutTime"    : PutTime, "Currentbattery": self.capValue[-1][1],
+                    "PutInfo"    : self.PutInfoBatteryJump, "PutBat": self.PutBatJump,
                     "Infomations": self.VolCur}
         logger.info("数据筛选完成~")
 
@@ -683,21 +750,21 @@ class ReadLogThread(QThread):
         return BatChargeValue
 
     def SendDing(self, kwargs):
-        JsonData = ReadJson(JsonPath)
-        message = f'\n --✉️ {JsonData.get("Devices", "")} Tests complete-- \n' \
-                  f'\n📌 测试人员：{JsonData.get("Name", "Apier")} \n' \
-                  f'\n💡 当前电量：{kwargs["Currentbattery"]} % \n' \
+        value = Dict(kwargs)
+        message = f'\n --✉️ {self.json_Data.getData("Devices")} Tests complete-- \n' \
+                  f'\n📌 测试人员：{self.json_Data.getData("Name", "Apier")} \n' \
+                  f'\n💡 当前电量：{value.Currentbattery} % \n' \
                   f'\n📆 测试日期：{self.currentTime} \n' \
-                  f'\n⌛ 跑机时长：{kwargs["PutTime"]} \n' \
-                  f'\n📝 跳电次数：{kwargs["PutInfo"]["JumpNum"]} 次 \n' \
-                  f'\n🚀 最大跳电：{kwargs["PutInfo"]["MaxJump"]}  \n' \
-                  f'\n ⚡ 开始电流：{kwargs["Infomations"]["ChargeDictValue"]["Start"]["cur"]} ma \n' \
-                  f'\n ⚡ 开始电压：{kwargs["Infomations"]["ChargeDictValue"]["Start"]["vol"]} mv \n' \
-                  f'\n ⚡ 结束电流：{kwargs["Infomations"]["ChargeDictValue"]["End"]["cur"]} ma \n' \
-                  f'\n ⚡ 结束电压：{kwargs["Infomations"]["ChargeDictValue"]["End"]["vol"]} ma \n'\
-                  f'\n📒 详细请参考文件夹中的".json"文件。'
+                  f'\n⌛ 跑机时长：{value.PutTime} \n' \
+                  f'\n📝 跳电次数：{value.PutInfo.JumpNum} 次 \n' \
+                  f'\n🚀 最大跳电：{value.PutInfo.MaxJump}  \n' \
+                  f'\n ⚡ 开始电流：{value.Infomations.ChargeDictValue.Start.cur} ma \n' \
+                  f'\n ⚡ 开始电压：{value.Infomations.ChargeDictValue.Start.vol} mv \n' \
+                  f'\n ⚡ 结束电流：{value.Infomations.ChargeDictValue.End.cur} ma \n' \
+                  f'\n ⚡ 结束电压：{value.Infomations.ChargeDictValue.End.vol} mv \n' \
+                  f'\n📒 详细请参考文件夹中的"数据处理中的.json"文件。'
         mobiles = []
-        OnelyIphone = JsonData.get("Phone")
+        OnelyIphone = self.json_Data.getData("Phone")
         if OnelyIphone:
             mobiles.append(OnelyIphone)
             self.dingding.send_ding_notification(message, mobiles)

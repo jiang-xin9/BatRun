@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import QHBoxLayout,QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from FUCTIONS.Loading import AnimatedGIFWindow
 from FUCTIONS.config import GetJsonFile
-from FUCTIONS.DingDing import ReadJson
+from FUCTIONS.ReadConfig import JSONREAD
 
 
 def SplitPath(FilePath):
@@ -80,7 +80,7 @@ class DataAnalysisQThread(QThread):
         if path.endswith(".json"):
             try:
                 for file in Files:
-                    data = ReadJson(file)
+                    data = JSONREAD().get_datas(file)
                     datas = data["PutInfo"]["JumpValue"]
                     for value in datas:
                         if 0 <= int(value[1]) <= 24:

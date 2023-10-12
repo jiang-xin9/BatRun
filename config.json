@@ -4,9 +4,12 @@
   "Name" : "An",
   "Devices" : "H2",
   "Phone" : "18674622237",
-  "Command1" : null,
-  "Command2" : null,
+  "Command1" : "info -d 1",
+  "Command2" : "bat -d 2",
   "Custom1" : "info -d 0",
   "Custom2" : "bat -d 0",
-  "BreakMark" : "+DISCONNECT"
+  "BreakMark" : "+DISCONNECT",
+  "BreakBat" : "90",
+  "BatteryCut" : false,
+  "CutValue" : 70
 }

@@ -17,7 +17,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>电池监测V1.1.0</string>
+   <string>电池监测V1.1.5</string>
   </property>
   <property name="windowIcon">
    <iconset resource="images/images.qrc">
@@ -356,7 +356,7 @@ QListView::item:selected {
               <number>2</number>
              </property>
              <property name="text">
-              <string>版本:V1.1.0</string>
+              <string>版本:V1.1.5</string>
              </property>
             </widget>
             <widget class="QLabel" name="label_8">
@@ -428,7 +428,7 @@ QListView::item:selected {
           <item>
            <widget class="QStackedWidget" name="stackedWidget">
             <property name="currentIndex">
-             <number>2</number>
+             <number>1</number>
             </property>
             <widget class="QWidget" name="page">
              <layout class="QVBoxLayout" name="verticalLayout">
@@ -555,10 +555,10 @@ QLineEdit {
                      <number>0</number>
                     </property>
                     <item>
-                     <widget class="QLineEdit" name="TestDevices">
+                     <widget class="QRadioButton" name="DataUnpack">
                       <property name="minimumSize">
                        <size>
-                        <width>140</width>
+                        <width>110</width>
                         <height>30</height>
                        </size>
                       </property>
@@ -567,11 +567,8 @@ QLineEdit {
                         <pointsize>12</pointsize>
                        </font>
                       </property>
-                      <property name="layoutDirection">
-                       <enum>Qt::LeftToRight</enum>
-                      </property>
-                      <property name="placeholderText">
-                       <string>测试设备</string>
+                      <property name="text">
+                       <string>数据分析</string>
                       </property>
                      </widget>
                     </item>
@@ -858,9 +855,6 @@ QLineEdit {
                     <enum>QFrame::Raised</enum>
                    </property>
                    <layout class="QHBoxLayout" name="horizontalLayout_3">
-                    <property name="spacing">
-                     <number>0</number>
-                    </property>
                     <property name="leftMargin">
                      <number>0</number>
                     </property>
@@ -873,6 +867,72 @@ QLineEdit {
                     <property name="bottomMargin">
                      <number>0</number>
                     </property>
+                    <item>
+                     <widget class="QLabel" name="label_13">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                       <size>
+                        <width>0</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>16777215</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>10</pointsize>
+                       </font>
+                      </property>
+                      <property name="text">
+                       <string>当前设备</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="DevicesName">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                       <size>
+                        <width>0</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>16777215</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>10</pointsize>
+                       </font>
+                      </property>
+                      <property name="text">
+                       <string/>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignCenter</set>
+                      </property>
+                     </widget>
+                    </item>
                     <item>
                      <widget class="QLabel" name="label_10">
                       <property name="sizePolicy">
@@ -1673,7 +1733,7 @@ QLabel:hover {
                              </font>
                             </property>
                             <property name="text">
-                             <string>info -d 1000</string>
+                             <string/>
                             </property>
                             <property name="alignment">
                              <set>Qt::AlignCenter</set>
@@ -1700,7 +1760,7 @@ QLabel:hover {
                              </font>
                             </property>
                             <property name="text">
-                             <string>bat -d 2</string>
+                             <string/>
                             </property>
                             <property name="alignment">
                              <set>Qt::AlignCenter</set>
