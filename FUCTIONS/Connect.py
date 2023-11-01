@@ -108,7 +108,8 @@ class UiConnect(QThread):
         self.LogFile = None
         self.CapList = []
         self.InfoCapList = []
-        self.statusList = []
+        # self.statusList = []
+        self.status = None
         self.JumpNum = 0
         self.num = 0
         self.DisConnetNum = 0
@@ -166,6 +167,8 @@ class UiConnect(QThread):
             if self.UI.hexSending_checkBox.isChecked() and self.UI.hexShowing_checkBox.isChecked():
                 self.while_read_thread.update_ui_signal.connect(self.Update16Ui)
             else:
+                self.num = 0  # 恢复 0
+                logger.info(f"当前num值为：{self.num}")
                 self.while_read_thread.update_ui_signal.connect(self.UpdateUi)  # 连接新信号到槽函数
             self.while_read_thread.start()
 
@@ -251,21 +254,26 @@ class UiConnect(QThread):
             infoCapValue = re.search(r".*cap\s*:\s*(\d*)\s*%", datas)
             # 状态
             statusValue = re.search(r'.*status\s*:\s*(\w*)', datas)
-            Connect = re.search(r".*\s*\+\s*(\w*)", datas)
+            # Connect = re.search(r".*\s*\+\s*(\w*)", datas)
+            Connect = re.search(r".*(\w*)", datas)
             StandardText = self.UI.Standard.currentText()
 
             if Connect:  # 检查断连
                 self.ConnectValue = Connect.group()
 
             if statusValue:
-                status = statusValue.group(1)  # 充电状态
-                self.statusList.append(status)
+                self.status = statusValue.group(1)  # 充电状态
+                # self.statusList.append(status)
 
             if infoCapValue:
                 capValue = infoCapValue.group(1)
+                # 2023-10-19新增
+                if len(self.InfoCapList) == 1:
+                    self.InfoCapList = self.InfoCapList[:-1]
                 self.InfoCapList.append(capValue)
 
-            if self.statusList[-1] == "full" and self.num == 0:  # 充电完成
+            # if self.statusList[-1] == "full" and self.num == 0:  # 充电完成
+            if self.status == "full" and self.num == 0:  # 充电完成
                 # if int(self.InfoCapList[-1]) >= 90:  # 满电
                 self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
                 self.SendCustomCommad()
@@ -275,46 +283,48 @@ class UiConnect(QThread):
                 self.num = 1
                 # 发送钉钉
 
-            # if self.statusList[-1] == "null" and self.num == 0:
-            # if int(self.InfoCapList[-1]) <= 10:  # 电量过低
-            if self.ConnectValue == self.JsonData.getData("BreakMark") and (self.num == 0):
-                self.DisConnetNum += 1
-                if self.DisConnetNum == 3:
+            # if self.ConnectValue == self.JsonData.getData("BreakMark") and (self.num == 0):
+            if (self.JsonData.getData("BreakMark") in self.ConnectValue) and (self.num == 0):  # 判断结束标志位是否存在
+                if self.JsonData.getData("BreakMark") == "+DISCONNECT":
+                    self.DisConnetNum += 1
+                    if self.DisConnetNum == 3:
+                        self.SendCustomCommad()
+                        self.SendTimer.stop()
+                        logger.info("放电完成或蓝牙模块断开次数过多-命令停止")
+                        self.Finish()
+                        self.num = 1
+                        # 发送钉钉
+                elif self.JsonData.getData("BreakMark") == self.JsonData.getData("OtherBreakMark"):
                     self.SendCustomCommad()
                     self.SendTimer.stop()
-                    logger.info("放电完成或蓝牙模块断开次数过多-命令停止")
+                    logger.info(f'放电完成或  {self.JsonData.getData("OtherBreakMark")} -命令停止')
                     self.Finish()
                     self.num = 1
-                    # 发送钉钉
 
-            if StandardText in self.SelectStant and self.num == 0:
-                if int(self.InfoCapList[-1]) >= int(self.JsonData.getData("BreakBat")):  # 满电
+            if (StandardText in self.SelectStant) and (self.num == 0):  # 针对特定机型充电
+                if int(self.InfoCapList[-1]) >= self.JsonData.getData("BreakBat"):  # 满电
                     self.SendCustomCommad()
                     self.SendTimer.stop()
                     logger.info("充电完成-命令停止")
                     self.Finish()
                     self.num = 1
-                    # 发送钉钉
-
-            if (len(self.InfoCapList) and len(self.statusList)) == 10:
-                self.InfoCapList.clear()
-                self.statusList.clear()
 
             if batCapValue:  # 有值则往下走
+                # 2023-10-19 修改
                 self.bat = batCapValue.group().split(",")[-1].strip()
-                if self.bat:
-                    self.UI.TIME_BAT_NUM.display(self.bat)  # 根据bat更新电量
-                else:
-                    self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
-
-                self.CapList.append(self.bat)
+                # if self.bat:
+                self.UI.TIME_BAT_NUM.display(self.bat)  # 根据bat更新电量
                 if len(self.CapList) == 2:
-                    Jump = int(self.CapList[-1]) - int(self.CapList[0])
-                    if (Jump > 1) or (Jump < 0):
-                        self.JumpNum += 1
-                        self.UI.JUMP_NUMBER.display(self.JumpNum)
-                        self.UI.MAX_JUMP_BAT.display(abs(Jump))  # 绝对值，放电回电，充电掉电
-                    self.CapList.clear()
+                    self.CapList = self.CapList[-1:]
+                Jump = int(self.CapList[-1]) - int(self.CapList[0])
+                if (Jump > 1) or (Jump < 0):
+                    self.JumpNum += 1
+                    self.UI.JUMP_NUMBER.display(self.JumpNum)
+                    self.UI.MAX_JUMP_BAT.display(abs(Jump))  # 绝对值，放电回电，充电掉电
+                # self.CapList.clear()
+                self.CapList.append(self.bat)
+            else:
+                self.UI.TIME_BAT_NUM.display(self.InfoCapList[-1])  # 根据info更新电量
 
         except:
             pass
@@ -360,7 +370,7 @@ class UiConnect(QThread):
             self.StartReadLog(ischeck=True)
         else:
             self.StartReadLog()
-        self.num = 0  # 恢复 0
+        # self.num = 0
 
     def handle_data_received(self, data):
         """接收到数据后的处理函数"""
@@ -422,7 +432,7 @@ class LogStorageThread(QThread):
             self.log_file = SaveLogPath + "\\" + FirstName + EndName + self.currentTime + ".log"
         else:
             self.log_file = SaveLogPath + "\\" + EndName + self.currentTime + ".log"
-        logger.info("日志文件创建成功~")
+        logger.info(f"日志文件创建成功~,日志文件是：{self.log_file}")
 
 
 # 循环读取传递数据
@@ -461,19 +471,30 @@ class WhileReadThread(QThread):
                     self.data_received.emit(datas.strip())
                     # 写入显示文本
                     self.update_ui_signal.emit(datas)
-                    self.ProcessData(datas, "pcp", "PCP-堵转")
-                    self.ProcessData(datas, "wiv", "WIV-内浸水")
-                    self.ProcessData(datas, "bcp", "BCP-过流保护")
-                    self.ProcessData(datas, "ocp", "OCP-电机保护")
+                    self.ProcessData(datas, "PCP-堵转")
+                    # self.ProcessData(datas, "wiv", "WIV-内浸水")
+                    # self.ProcessData(datas, "bcp", "BCP-过流保护")
+                    # self.ProcessData(datas, "ocp", "OCP-电机保护")
+                    # self.ProcessData(datas, "wcp", "WCP-行走电机报警")
+                    # self.ProcessData(datas, "except stat")      # 2023-10-20新增
 
-    def ProcessData(self, data, pattern, prompt):
-        """正则匹配"""
-        match = re.search(r".*{}\s*:\s*(\d+)".format(pattern), data)
-        if match:
-            value = match.group(1)
-            if value == "1" and self.num == 0:
-                self.SendDing(prompt)
-                self.num = 1
+    # def ProcessData(self, data, pattern, prompt=None):
+    def ProcessData(self, data, prompt=None):
+        """正则匹配告警"""
+        warns = {"wiv": "WIV-内浸水", "pcp": "PCP-堵转", "ocp": "OCP-电机保护",
+                 "bcp": "BCP-过流保护", "wcp": "WCP-行走电机报警"}
+        for warn in warns:
+            # match = re.search(r".*{}\s*:\s*(\d+)".format(pattern), data)
+            match = re.search(r".*{}\s*:\s*(\d+)".format(warns.get(warn," ")), data)
+            if match:
+                value = match.group(1)
+                if value == "1" and self.num == 0:
+                    self.SendDing(prompt)  # 指定数据为1
+                    self.num = 1
+            # elif value != "0x0000000000000000" and self.num == 0:
+            #     logger.erro(f"")
+            #     self.SendDing(value)    # 发送告警消息
+            #     self.num = 1
 
     def SendDing(self, prompt):
         Data = JSONREAD()
@@ -569,11 +590,13 @@ class ReadLogThread(QThread):
         if self.is_check:
             logger.info("开始写入excel")
             try:
-                LogParsingThread(self.Path)
-            except Exception as e:
-                logger.info("写入异常！ {}".format(e))
-            finally:
+                logger.info(f"==读取文件==地址：{self.Path}")
+                unpack_log = LogParsingThread(self.Path)
+                unpack_log.start()
+                unpack_log.stop()
                 logger.info("excel写入完成")
+            except Exception as e:
+                logger.error("写入异常！ {}".format(e))
 
     @staticmethod
     def DataTimes(stime, etime):
@@ -635,7 +658,7 @@ class ReadLogThread(QThread):
         logger.info("数据筛选完成~")
 
     @property
-    @UseException(message="取值错误，检查日志数据")
+    @UseException(message="==ChargeInfoBatteryJump== 取值错误，检查日志数据")
     def ChargeInfoBatteryJump(self):
         """info充电跳电"""
         MaxNumber = []
@@ -656,7 +679,7 @@ class ReadLogThread(QThread):
         return dictValue
 
     @property
-    @UseException(message="取值错误，检查日志数据")
+    @UseException(message="==PutInfoBatteryJump== 取值错误，检查日志数据")
     def PutInfoBatteryJump(self):
         """info放电跳电数据"""
         MaxNumber = []
@@ -676,7 +699,7 @@ class ReadLogThread(QThread):
         return dictValue
 
     @property
-    @UseException(message="取值错误，检查日志数据")
+    @UseException(message="==VolCur== 取值错误，检查日志数据")
     def VolCur(self):
         """单数是充电电流电压，双数是电池电流电压"""
         ChargeDictValue = {"Start": {"vol": None, "cur": None}, "End": {"vol": None, "cur": None}}
@@ -704,7 +727,7 @@ class ReadLogThread(QThread):
             return {"ChargeDictValue": ChargeDictValue, "BatteryDictValue": BatteryDictValue}
 
     @property
-    @UseException(message="取值错误，检查日志数据")
+    @UseException(message="==PutBatJump== 取值错误，检查日志数据")
     def PutBatJump(self):
         """Bat放电"""
         BatPutValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
@@ -727,7 +750,7 @@ class ReadLogThread(QThread):
         return BatPutValue
 
     @property
-    @UseException(message="取值错误，检查日志数据")
+    @UseException(message="==ChargeBatJump== 取值错误，检查日志数据")
     def ChargeBatJump(self):
         """Bat充电"""
         BatChargeValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
@@ -751,7 +774,7 @@ class ReadLogThread(QThread):
 
     def SendDing(self, kwargs):
         value = Dict(kwargs)
-        message = f'\n --✉️ {self.json_Data.getData("Devices")} Tests complete-- \n' \
+        message = f'\n --✉️ {self.json_Data.getData("Devices")} {self.SelectText} Tests complete-- \n' \
                   f'\n📌 测试人员：{self.json_Data.getData("Name", "Apier")} \n' \
                   f'\n💡 当前电量：{value.Currentbattery} % \n' \
                   f'\n📆 测试日期：{self.currentTime} \n' \

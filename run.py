@@ -12,4 +12,12 @@ if __name__ == '__main__':
     app.exec_()
 
 # MONITOR_SYSTEM.
-# Pyinstaller -F -w -i UI\images\favicon.ico --name="自动化电池监测V1.14"  run.py
+# Pyinstaller -F -w -i UI\images\favicon.ico --name="自动化电池监测V1.15.3"  run.py
+
+
+"""
+待优化:
+1、Connect的UpdateUi的数据现在是一直读取的，可以改为一次性读取，减少读取性能
+2、Connect的日志时间戳可以保持统一
+3、
+"""

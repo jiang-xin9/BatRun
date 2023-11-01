@@ -8,6 +8,7 @@ import os
 import pandas as pd
 from PyQt5.QtCore import QThread
 from pathlib import Path
+from FUCTIONS.Loging import logger
 
 class LogParsingThread(QThread):
 
@@ -16,7 +17,9 @@ class LogParsingThread(QThread):
         self.log = LogParsing(path)
 
     def run(self):
+        # logger.info(f"{__class__.__name__}启动成功")
         self.log.reInfoParsing()
+        logger.info("== 执行reInfoParsing ==")
         self.exec_()
 
     def stop(self):
@@ -30,6 +33,7 @@ def autoReadLog(func):
         self = args[0]
         with open(self.path, 'r', encoding='utf-8') as r:
             self.texts = r.read()
+            logger.info(f"=={self.reInfoParsing.__name__}== 读取路径位是{self.path}")
         return func(*args, **kwargs)
 
     return wrapper
@@ -51,6 +55,7 @@ class LogParsing:
         for (root, dirs, files) in os.walk(self.save_path, topdown=True):
             if xlsxPath in files:
                 os.remove(xlsxPath)
+                logger.info("存在相同名称日志，删除成功==")
 
     @autoReadLog
     def reInfoParsing(self):
@@ -75,9 +80,16 @@ class LogParsing:
                         self.dataDict[order][key] = []
                     self.dataDict[order][key].append(value)
 
-                self.dataDict[order]['time'].append(time)
-
-        self.writerInfoExcel(self.save_path / "日志解析数据.xlsx")
+                try:
+                    self.dataDict[order]['time'].append(time)
+                except:
+                    logger.error("！！！时间模块不正确，解析不成功！！！")
+        try:
+            file_path = self.save_path / "日志解析数据.xlsx"
+            logger.info(f"==写入文件==地址是：{file_path}")
+            self.writerInfoExcel(file_path)
+        except:
+            logger.error("！！！数据长度不一致，数据解析不成功！！！")
 
     def writerInfoExcel(self, filePath: str):
         """`
@@ -98,4 +110,5 @@ class LogParsing:
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 # if __name__ == '__main__':
-#     LogParsing().reInfoParsing()
+#     LogParsing(r"C:\Users\admin\Desktop\自动化电池监测V1.15\自动化电池监测日志\H2充电2023_10_20_11_33_17.log").reInfoParsing()
+#

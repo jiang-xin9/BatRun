@@ -938,12 +938,12 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
-        self.stackedWidget.setCurrentIndex(0)
+        self.stackedWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "电池监测V1.1.0"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "电池监测V1.1.5"))
         self.label_4.setText(_translate("MainWindow", "RDC-测试组"))
         self.label_5.setText(_translate("MainWindow", "电池电量监控"))
         __sortingEnabled = self.listWidget.isSortingEnabled()
@@ -957,7 +957,7 @@ class Ui_MainWindow(object):
         item = self.listWidget.item(3)
         item.setText(_translate("MainWindow", "OTA升级"))
         self.listWidget.setSortingEnabled(__sortingEnabled)
-        self.label_7.setText(_translate("MainWindow", "版本:V1.1.4"))
+        self.label_7.setText(_translate("MainWindow", "版本:V1.1.5"))
         self.label_8.setText(_translate("MainWindow", "开发者:An"))
         self.DataUnpack.setText(_translate("MainWindow", "数据分析"))
         self.AlarmClock.setToolTip(_translate("MainWindow", "定时命令勾选按钮"))

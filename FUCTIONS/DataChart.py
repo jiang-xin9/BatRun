@@ -100,7 +100,7 @@ class DataPlotWidget(QObject):
             self.data.append(data_point)
 
             # 限制元素数量为100个
-            max_elements = 100
+            max_elements = 1000
             if len(self.timestamps) > max_elements:
                 self.timestamps = self.timestamps[-max_elements:]
                 self.data = self.data[-max_elements:]
