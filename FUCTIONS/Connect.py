@@ -302,7 +302,7 @@ class UiConnect(QThread):
                     self.num = 1
 
             if (StandardText in self.SelectStant) and (self.num == 0):  # 针对特定机型充电
-                if int(self.InfoCapList[-1]) >= self.JsonData.getData("BreakBat"):  # 满电
+                if int(self.InfoCapList[-1]) == self.JsonData.getData("BreakBat"):  # 满电
                     self.SendCustomCommad()
                     self.SendTimer.stop()
                     logger.info("充电完成-命令停止")
@@ -423,6 +423,8 @@ class LogStorageThread(QThread):
         FirstName = JSONREAD().getData("Devices")
         EndName = self.UI.SelectCommand.currentText()
         self.currentTime = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        Day = JSONREAD().update_datas("Day",self.currentTime)
+        logger.info(f"时间Day写入SUCCESS：{Day}")
         SaveLogPath = sys_ + "\\" + "自动化电池监测日志"
         # 检查文件夹是否已存在
         if not os.path.exists(SaveLogPath):
@@ -471,30 +473,29 @@ class WhileReadThread(QThread):
                     self.data_received.emit(datas.strip())
                     # 写入显示文本
                     self.update_ui_signal.emit(datas)
-                    self.ProcessData(datas, "PCP-堵转")
-                    # self.ProcessData(datas, "wiv", "WIV-内浸水")
-                    # self.ProcessData(datas, "bcp", "BCP-过流保护")
-                    # self.ProcessData(datas, "ocp", "OCP-电机保护")
-                    # self.ProcessData(datas, "wcp", "WCP-行走电机报警")
-                    # self.ProcessData(datas, "except stat")      # 2023-10-20新增
+                    self.ProcessData(datas)
 
-    # def ProcessData(self, data, pattern, prompt=None):
-    def ProcessData(self, data, prompt=None):
-        """正则匹配告警"""
+    def ProcessData(self, data):
+        """正则匹配告警   2023/11/03新增"""
         warns = {"wiv": "WIV-内浸水", "pcp": "PCP-堵转", "ocp": "OCP-电机保护",
-                 "bcp": "BCP-过流保护", "wcp": "WCP-行走电机报警"}
-        for warn in warns:
-            # match = re.search(r".*{}\s*:\s*(\d+)".format(pattern), data)
-            match = re.search(r".*{}\s*:\s*(\d+)".format(warns.get(warn," ")), data)
-            if match:
-                value = match.group(1)
-                if value == "1" and self.num == 0:
-                    self.SendDing(prompt)  # 指定数据为1
-                    self.num = 1
-            # elif value != "0x0000000000000000" and self.num == 0:
-            #     logger.erro(f"")
-            #     self.SendDing(value)    # 发送告警消息
-            #     self.num = 1
+                 "bcp": "BCP-过流保护", "wcp": "WCP-行走电机报警", "except stat": "Exceptions Status"}
+        S1_match = re.search(r".*{}\s*:\s*0x(\d*)".format("except stat"), data)
+        if S1_match:
+            S1_value = S1_match.group(1)
+            if S1_value != "0000000000000000" and self.num == 0:
+                logger.error("发生告警：{} {}".format(warns['except stat'], S1_value))
+                self.SendDing(warns["except stat"] + f" {S1_value}")    # 发送告警消息
+                self.num = 1
+        else:
+            for warn in warns:
+                # match = re.search(r".*{}\s*:\s*(\d+)".format(pattern), data)
+                match = re.search(r".*{}\s*:\s*(\d+)".format(warn, " "), data)
+                if match:
+                    value = match.group(1)
+                    if value == "1" and self.num == 0:
+                        logger.error(f"发生告警：{warns[warn]}")
+                        self.SendDing(warns[warn])
+                        self.num = 1  # 指定数据为1
 
     def SendDing(self, prompt):
         Data = JSONREAD()
@@ -573,7 +574,7 @@ class ReadLogThread(QThread):
             except ValueError as e:
                 logger.error(f"Json写入异常 {e}")
             finally:
-                self.SendDing(info)  # 发送钉钉
+                # self.SendDing(info)  # 发送钉钉
                 logger.info("钉钉发送完成~")
 
     def WriteJson(self, info):
@@ -598,13 +599,23 @@ class ReadLogThread(QThread):
             except Exception as e:
                 logger.error("写入异常！ {}".format(e))
 
-    @staticmethod
-    def DataTimes(stime, etime):
-        start_format = '%H:%M:%S.%f' if len(stime) >= 12 else '%H:%M:%S'
-        end_format = '%H:%M:%S.%f' if len(etime) >= 12 else '%H:%M:%S'
-        start_time = datetime.datetime.strptime(stime, start_format)
-        end_time = datetime.datetime.strptime(etime, end_format)
-        duration = end_time - start_time
+    def DataTimes(self, stime, etime):
+        """计算时长"""
+        is_key = JSONREAD().is_key_present("Day")
+        if is_key:
+            Day = JSONREAD().getData("Day")[:10]
+            Last = self.currentTime[:10]
+            Day_time = Day + " " + stime
+            Last_time = Last + " " + etime
+            start_time = datetime.datetime.strptime(Day_time, "%Y_%m_%d %H:%M:%S.%f")
+            end_time = datetime.datetime.strptime(Last_time, "%Y_%m_%d %H:%M:%S.%f")
+            duration = end_time - start_time
+        else:
+            start_format = '%H:%M:%S.%f' if len(stime) >= 12 else '%H:%M:%S'
+            end_format = '%H:%M:%S.%f' if len(etime) >= 12 else '%H:%M:%S'
+            start_time = datetime.datetime.strptime(stime, start_format)
+            end_time = datetime.datetime.strptime(etime, end_format)
+            duration = end_time - start_time
         if len(str(duration)) > 8:
             return str(duration)[:-3]
         else:
@@ -620,7 +631,6 @@ class ReadLogThread(QThread):
         """正则"""
         self.capValue = re.findall(r'\[(.*)\].*cap\s*:\s*(\d*)\s*%', self.datas)
         self.statusValue = re.findall(r'\[(.*)\].*status\s*:\s*(\w*)', self.datas)
-
         self.volValue = re.findall(r"\[(.*)\]\s*vol\s*:\s*(\d*)", self.datas)
         self.curValue = re.findall(r"\[(.*)\]\s*cur\s*:\s*(\d*)", self.datas)
         self.batValues = re.findall('\[(.*)\].*cap\s*:.*,(.*)', self.datas)
@@ -635,22 +645,27 @@ class ReadLogThread(QThread):
             # 充电时长
             ChargeTime = self.DataTimes(stime=self.statusValue[0][0],
                                         etime=self.statusValue[-1][0])
+            logger.info("充电时长：{}".format(ChargeTime))
             # 充电跳电情况
             return {"PutTime"    : ChargeTime, "Currentbattery": self.capValue[-1][1],
                     "PutInfo"    : self.ChargeInfoBatteryJump, "PutBat": self.ChargeBatJump,
                     "Infomations": self.VolCur}
 
         elif self.SelectText == "放电":  # 放电
-            if self.json_Data.getData("BatteryCut"):
+            is_BatteryCut = self.json_Data.getData("BatteryCut")
+            if is_BatteryCut:
+                logger.info("BatteryCut为True")
                 for cap in self.capValue:
                     if int(cap[1]) == self.json_Data.getData("CutValue"):
                         PutTime = self.DataTimes(stime=cap[0],
                                                  etime=self.capValue[-1][0])
+                        logger.info("自定义截止电量为{}，放电时长：{}".format(cap[1], PutTime))
                         break
             else:
                 # 放电时长
                 PutTime = self.DataTimes(stime=self.capValue[0][0],
                                          etime=self.capValue[-1][0])
+                logger.info("放电时长：{}".format(PutTime))
             # 放电跳电情况
             return {"PutTime"    : PutTime, "Currentbattery": self.capValue[-1][1],
                     "PutInfo"    : self.PutInfoBatteryJump, "PutBat": self.PutBatJump,
@@ -665,17 +680,22 @@ class ReadLogThread(QThread):
         dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
         for num in range(len(self.capValue) - 1):
             CountNumber = int(self.capValue[num + 1][1]) - int(self.capValue[num][1])
-            if CountNumber > 1:  # 充电跳电
-                dictValue["JumpNum"] += 1
-                MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(self.capValue[num + 1])
-            if CountNumber < 0:  # 充电掉电
+            # if CountNumber > 1:  # 充电跳电
+            #     dictValue["JumpNum"] += 1
+            #     MaxNumber.append(CountNumber)
+            #     dictValue["JumpValue"].append(self.capValue[num + 1])
+            # if CountNumber < 0:  # 充电掉电
+            #     dictValue["JumpNum"] += 1
+            #     MaxNumber.append(CountNumber)
+            #     dictValue["JumpValue"].append(self.capValue[num + 1])
+            if (CountNumber > 1) or (CountNumber < 0):
+                """不论涨还是跳"""
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
                 dictValue["JumpValue"].append(self.capValue[num + 1])
         if MaxNumber:
             dictValue["MaxJump"] = max(MaxNumber)
-        # print("ChargeInfoBatteryJump",dictValue)
+        # print("ChargeInfoBatteryJump", dictValue)
         return dictValue
 
     @property
@@ -686,11 +706,16 @@ class ReadLogThread(QThread):
         dictValue = {"JumpNum": 0, "JumpValue": [], "MaxJump": 0}
         for num in range(len(self.capValue) - 1):
             CountNumber = int(self.capValue[num][1]) - int(self.capValue[num + 1][1])
-            if CountNumber > 1:  # 放电回电
-                dictValue["JumpNum"] += 1
-                MaxNumber.append(CountNumber)
-                dictValue["JumpValue"].append(self.capValue[num + 1])
-            if CountNumber < 0:  # 放电跳电
+            # if CountNumber > 1:  # 放电回电
+            #     dictValue["JumpNum"] += 1
+            #     MaxNumber.append(CountNumber)
+            #     dictValue["JumpValue"].append(self.capValue[num + 1])
+            # if CountNumber < 0:  # 放电跳电
+            #     dictValue["JumpNum"] += 1
+            #     MaxNumber.append(CountNumber)
+            #     dictValue["JumpValue"].append(self.capValue[num + 1])
+            if (CountNumber > 1) or (CountNumber < 0):
+                """不论涨还是掉"""
                 dictValue["JumpNum"] += 1
                 MaxNumber.append(CountNumber)
                 dictValue["JumpValue"].append(self.capValue[num + 1])
@@ -735,13 +760,18 @@ class ReadLogThread(QThread):
         if self.batValues:
             for num in range(len(self.batValues) - 1):
                 CountNumber = int(self.batValues[num][1]) - int(self.batValues[num + 1][1])
-                if CountNumber > 1:
-                    """掉"""
-                    BatPutValue["JumpNum"] += 1
-                    MaxNumber.append(CountNumber)
-                    BatPutValue["JumpValue"].append(self.batValues[num + 1])
-                if CountNumber < 0:
-                    """回"""
+                # if CountNumber > 1:
+                #     """掉"""
+                #     BatPutValue["JumpNum"] += 1
+                #     MaxNumber.append(CountNumber)
+                #     BatPutValue["JumpValue"].append(self.batValues[num + 1])
+                # if CountNumber < 0:
+                #     """回"""
+                #     BatPutValue["JumpNum"] += 1
+                #     MaxNumber.append(CountNumber)
+                #     BatPutValue["JumpValue"].append(self.batValues[num + 1])
+                if (CountNumber > 1) or (CountNumber < 0):
+                    """不论涨还是掉"""
                     BatPutValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
                     BatPutValue["JumpValue"].append(self.batValues[num + 1])
@@ -758,13 +788,18 @@ class ReadLogThread(QThread):
         if self.batValues:
             for num in range(len(self.batValues) - 1):
                 CountNumber = int(self.batValues[num + 1][1]) - int(self.batValues[num][1])
-                if CountNumber > 1:
-                    """跳"""
-                    BatChargeValue["JumpNum"] += 1
-                    MaxNumber.append(CountNumber)
-                    BatChargeValue["JumpValue"].append(self.batValues[num + 1])
-                if CountNumber < 0:
-                    """掉"""
+                # if CountNumber > 1:
+                #     """跳"""
+                #     BatChargeValue["JumpNum"] += 1
+                #     MaxNumber.append(CountNumber)
+                #     BatChargeValue["JumpValue"].append(self.batValues[num + 1])
+                # if CountNumber < 0:
+                #     """掉"""
+                #     BatChargeValue["JumpNum"] += 1
+                #     MaxNumber.append(CountNumber)
+                #     BatChargeValue["JumpValue"].append(self.batValues[num + 1])
+                if (CountNumber > 1) or (CountNumber < 0):
+                    """不论涨还是掉"""
                     BatChargeValue["JumpNum"] += 1
                     MaxNumber.append(CountNumber)
                     BatChargeValue["JumpValue"].append(self.batValues[num + 1])

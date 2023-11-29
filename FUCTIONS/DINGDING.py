@@ -39,7 +39,7 @@ class DingTalkSendMsg:
         sign = self.get_sign()
         # 从yaml文件中获取钉钉配置信息
         webhook = self.JsonData.getData("hook_url") + "&timestamp=" + self.timeStamp + "&sign=" + sign
-        return DingtalkChatbot(webhook)
+        return DingtalkChatbot(webhook, fail_notice=True)
 
     def get_sign(self) -> Text:
         """
@@ -136,7 +136,6 @@ class DingTalkSendMsg:
 
     def send_feed_link(self, *arg) -> None:
         """发送 feed_lik """
-
         self.xiao_ding().send_feed_card(list(arg))
 
     def send_ding_notification(self, message, mobiles=None):

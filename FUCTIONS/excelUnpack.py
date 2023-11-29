@@ -66,6 +66,7 @@ class LogParsing:
         orderValues = list(dict.fromkeys(values))
         for order, num in zip(orderValues, range(len(orderValues) - 1)):
             pattern = r"{}([\s\S]*?){}".format(re.escape(values[num]), re.escape(values[num + 1]))
+            # pattern = r"{}([\s\S]*?){}".format("<motor>", "<imu>")
             datas = re.findall(pattern, self.texts)
             for data in datas:
                 # dataValue = re.findall('(.*])(\w*\s*):\s*(.*)', data)
@@ -75,21 +76,32 @@ class LogParsing:
                     self.dataDict[order]['time'] = []
 
                 for dataDict in dataValue:
+                    # 应该先把所有的key拿到，再匹配值，可以避免匹配不到的时候需要额外处理
                     time, key, value = dataDict[0], dataDict[1].strip(), dataDict[2]
+                    # print(time, key, value)
+                    if not key:
+                        # self.dataDict[order]["default_key"] = value
+                        continue
+                    # if not value:
+                    #     self.dataDict[order][key] = "default_value"
                     if key not in self.dataDict[order]:
                         self.dataDict[order][key] = []
                     self.dataDict[order][key].append(value)
-
                 try:
                     self.dataDict[order]['time'].append(time)
                 except:
                     logger.error("！！！时间模块不正确，解析不成功！！！")
+
+        # print(orderValues)
+        # for i in orderValues:
+            # print(i)
+        # print(self.dataDict)
         try:
             file_path = self.save_path / "日志解析数据.xlsx"
             logger.info(f"==写入文件==地址是：{file_path}")
             self.writerInfoExcel(file_path)
         except:
-            logger.error("！！！数据长度不一致，数据解析不成功！！！")
+            logger.error("！！！数据长度不一致，数据有缺失！！！")
 
     def writerInfoExcel(self, filePath: str):
         """`
@@ -110,5 +122,4 @@ class LogParsing:
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 # if __name__ == '__main__':
-#     LogParsing(r"C:\Users\admin\Desktop\自动化电池监测V1.15\自动化电池监测日志\H2充电2023_10_20_11_33_17.log").reInfoParsing()
-#
+    # LogParsing(r"C:\Users\admin\Desktop\爬墙2.log").reInfoParsing()
